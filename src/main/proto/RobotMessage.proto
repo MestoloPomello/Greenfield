@@ -1,0 +1,14 @@
+package cleaning_robot.proto;
+
+message RobotMessage {
+  required int32 senderId = 1;
+  required int32 senderPort = 2;
+  required int32 timestamp = 3;
+  required int32 startingPosX = 4;
+  required int32 startingPosY = 5;
+  required string message = 6;
+}
+
+service RobotCommunicationService {
+  rpc rcs(stream RobotMessage) returns (stream RobotMessage);
+}
