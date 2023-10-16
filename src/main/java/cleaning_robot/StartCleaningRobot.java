@@ -28,25 +28,27 @@ import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 import shared.exceptions.DuplicatedIdException;
 
+import shared.utils.LamportTimestamp;
 import simulators.Buffer;
 import simulators.PM10Simulator;
+
+import static shared.utils.Utils.getRandomInt;
 
 
 public class StartCleaningRobot {
 
     static int id, posX, posY, portNumber;
     static int district;
-    static int timestamp; // Lamport clock
-    static int tsOffset;
     static List<CleaningRobot> deployedRobots;
+    static LamportTimestamp timestamp;
+
 
     public static void main(String[] args) throws IOException {
 
         portNumber = getRandomInt(49152, 65535); // Following IANA guidelines
 
         // Lamport clock
-        timestamp = 1;
-        tsOffset = getRandomInt(1, 10);
+        timestamp = new LamportTimestamp();
 
         try {
             Client client = Client.create();
@@ -58,7 +60,7 @@ public class StartCleaningRobot {
 
             // The robot calls the server in order to register itself
             InputRobot newRobot = new InputRobot(id, portNumber, Constants.SERVER_ADDR);
-            timestamp += tsOffset;
+            timestamp.increaseTimestamp();
             RobotCreationResponse response = postRequest(client, serverAddress + "/robot", newRobot);
 
             if (response == null) {
@@ -84,9 +86,14 @@ public class StartCleaningRobot {
                     throw new Exception("Unknown status");
             }
 
+            // Create objects
             Buffer buffer = new BufferImpl();
             PM10Simulator simulator = new PM10Simulator(buffer);
-            SensorThread sensorThread = new SensorThread(buffer, district);
+            SensorThread sensorThread = new SensorThread(
+                    buffer,
+                    district,
+                    id,
+                    timestamp);
 
             // Start PM10 measurements
             simulator.start();
@@ -193,17 +200,17 @@ public class StartCleaningRobot {
             }
         });
 
-        timestamp+=tsOffset;
+        timestamp.increaseTimestamp();
 
         System.out.println("> Message sent."
                 + "\n\tReceiver port: " + otherRobotPort
-                + "\n\tTimestamp: " + timestamp
+                + "\n\tTimestamp: " + timestamp.getTimestamp()
                 + "\n\tMessage: " + msg);
 
         robotStream.onNext(RobotMessage.newBuilder()
                         .setSenderId(id)
                         .setSenderPort(otherRobotPort)
-                        .setTimestamp(timestamp)
+                        .setTimestamp(timestamp.getTimestamp())
                         .setStartingPosX(posX)
                         .setStartingPosY(posY)
                         .setMessage(msg)
@@ -215,10 +222,6 @@ public class StartCleaningRobot {
             e.printStackTrace();
         }
 
-    }
-
-    private static int getRandomInt(int min, int max) {
-        return ThreadLocalRandom.current().nextInt(min, max + 1);
     }
 }
 

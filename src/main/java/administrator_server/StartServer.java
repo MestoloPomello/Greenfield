@@ -9,24 +9,37 @@ package administrator_server;
 
 import administrator_server.beans.ServerMeasurement;
 import administrator_server.beans.Measurements;
+import com.google.common.reflect.TypeToken;
 import com.sun.jersey.api.container.httpserver.HttpServerFactory;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 
+import io.grpc.Server;
 import org.eclipse.paho.client.mqttv3.*;
 
+import shared.beans.AveragesPayload;
 import shared.constants.Constants;
+import shared.utils.LamportTimestamp;
+import simulators.Measurement;
 
 public class StartServer {
+
+    static LamportTimestamp timestamp;
 
     public static void main(String[] args) throws IOException {
 
         // To remove the red wall of text from Jersey
         Logger.getLogger( "com" ).setLevel( Level.SEVERE );
+
+        // Lamport clock
+        timestamp = new LamportTimestamp();
 
         // Server connection
         HttpServer server = HttpServerFactory.create("http://" + Constants.SERVER_ADDR + ":" + Constants.SERVER_PORT + "/");
@@ -48,20 +61,41 @@ public class StartServer {
             client.setCallback(new MqttCallback() {
                 public void messageArrived(String topic, MqttMessage message) {
                     Gson gson = new Gson();
-                    ServerMeasurement newMeasurement = gson.fromJson(new String(message.getPayload()), ServerMeasurement.class);
-                    newMeasurement.setDistrict(Character.getNumericValue(topic.charAt(topic.length() - 1)));
 
-                    System.out.println("[PM10] New measurement received - Thread PID: " + Thread.currentThread().getId() +
+//                    Type measurementType = new TypeToken<ArrayList<ServerMeasurement>>(){}.getType();
+//                    ArrayList<ServerMeasurement> newMeasurements = gson.fromJson(new String(message.getPayload()), measurementType);
+
+                    AveragesPayload averagesData = gson.fromJson(new String(message.getPayload()), AveragesPayload.class);
+                    List<Integer> insertsResponses = new ArrayList<>();
+                    StringBuilder strAverages = new StringBuilder();
+
+                    for (Measurement average : averagesData.getAverages()) {
+                        ServerMeasurement newMeasurement = new ServerMeasurement(
+                                Character.getNumericValue(topic.charAt(topic.length() - 1)),
+                                Integer.toString(averagesData.getRobotID()),
+                                average.getType(),
+                                average.getValue(),
+                                averagesData.getTimestamp()
+                        );
+
+                        strAverages.append(average.getValue()).append(", ");
+                        insertsResponses.add(Measurements.getInstance().insertMeasurement(newMeasurement));
+                    }
+
+                    // Remove last ", "
+                    strAverages.delete(strAverages.length() - 2, strAverages.length());
+
+                    System.out.println("[PM10] New measurements received - Thread PID: " + Thread.currentThread().getId() +
                             "\n\tTopic: " + topic +
                             "\n\tQoS: " + message.getQos() +
-                            "\n\tTimestamp: " + newMeasurement.getTimestamp() +
-                            "\n\tPM10: " + newMeasurement.getValue() + "\n");
+                            "\n\tTimestamp: " + averagesData.getTimestamp() +
+                            "\n\tPM10 averages: " + strAverages + "\n");
 
-                    int response = Measurements.getInstance().insertMeasurement(newMeasurement);
                 }
 
                 public void connectionLost(Throwable c) {
-                    System.err.println("[ERROR] Connection lost. Reason: " + c.getMessage()+ " -  Thread PID: " + Thread.currentThread().getId());
+                    System.err.println("[ERROR] Connection lost. Reason: " + c.getMessage() + " - Thread PID: " + Thread.currentThread().getId());
+                    c.printStackTrace();
                 }
 
                 public void deliveryComplete(IMqttDeliveryToken token) {

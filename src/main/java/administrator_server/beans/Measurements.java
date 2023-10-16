@@ -40,7 +40,7 @@ public class Measurements {
     public synchronized int insertMeasurement(ServerMeasurement newMeasurement){
         try {
             measurementsList.add(newMeasurement);
-            System.out.println("New measurement successfully stored.");
+            //System.out.println("New measurement successfully stored.");
             return Constants.STATUS_SUCCESS;
         } catch (Exception e) {
             System.err.println("[ERROR] Couldn't insert a new measurement: " + e.getMessage());
