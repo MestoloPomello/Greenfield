@@ -1,5 +1,6 @@
 package administrator_client;
 
+import administrator_client.threads.InputThread;
 import com.sun.jersey.api.client.Client;
 import shared.constants.Constants;
 import shared.utils.LamportTimestamp;
@@ -17,7 +18,8 @@ public class AdministratorClient {
         Client client = Client.create();
         String serverAddress = "http://" + Constants.SERVER_ADDR + ":" + Constants.SERVER_PORT;
 
-        
+        InputThread inputThread = new InputThread(client, serverAddress);
+        inputThread.start();
     }
 
 }

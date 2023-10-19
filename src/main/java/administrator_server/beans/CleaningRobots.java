@@ -1,5 +1,6 @@
 package administrator_server.beans;
 
+import shared.beans.RobotListResponse;
 import shared.constants.Constants;
 import shared.beans.CleaningRobot;
 import shared.beans.InputRobot;
@@ -35,8 +36,8 @@ public class CleaningRobots {
         return instance;
     }
 
-    public synchronized List<CleaningRobot> getDeployedRobots() {
-        return new ArrayList<>(deployedRobots);
+    public synchronized RobotListResponse getDeployedRobots() {
+        return new RobotListResponse(deployedRobots);
     }
 
     public synchronized void setDeployedRobots(List<CleaningRobot> deployedRobots) {
