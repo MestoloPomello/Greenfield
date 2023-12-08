@@ -51,19 +51,24 @@ public class HealthCheckThread extends Thread {
         Random random = new Random();
 
         while (running) {
-            if (needsFix) {
-                /*hasToken = false;
-                passToken();*/
-                ricartAgrawala();
-            } else {
-                // Normal waiting time
-                try {
-                    TimeUnit.SECONDS.sleep(15);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+            try {
+                TimeUnit.SECONDS.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            if (!needsFix) {
+                // If the robot is normally working
                 needsFix = random.nextDouble() < 0.1;
             }
+
+//            if (needsFix) {
+//                /*hasToken = false;
+//                passToken();*/
+//                ricartAgrawala();
+//            } else {
+//                // Normal waiting time
+//            }
         }
     }
 

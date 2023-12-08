@@ -1,27 +1,45 @@
 package cleaning_robot;
 
+import administrator_server.beans.Measurements;
+import shared.beans.ServerMeasurement;
+
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 public class Mechanic {
-    boolean hasToken = false;
+    //boolean hasToken = false;
 
-    // da controllare tutto
-    synchronized void fixRobot() {
-        if (!hasToken) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            try {
-                TimeUnit.SECONDS.sleep(10);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+    private final static Object lock = new Object();
+    private static Mechanic instance;
 
-            notify();
-            hasToken = true;
+    private Mechanic() { }
+
+    // Singleton
+    public static Mechanic getInstance(){
+        synchronized (lock) {
+            if (instance == null)
+                instance = new Mechanic();
+            return instance;
         }
     }
+
+    // da controllare tutto
+//    synchronized void fixRobot() {
+//        if (!hasToken) {
+//            try {
+//                wait();
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        } else {
+//            try {
+//                TimeUnit.SECONDS.sleep(10);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//
+//            notify();
+//            hasToken = true;
+//        }
+//    }
 }

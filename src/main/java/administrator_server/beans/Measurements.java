@@ -1,5 +1,6 @@
 package administrator_server.beans;
 
+import io.grpc.Server;
 import shared.beans.ServerMeasurement;
 import shared.constants.Constants;
 
@@ -38,9 +39,37 @@ public class Measurements {
     }
 
     public List<ServerMeasurement> getMeasurementsList() {
+        // Get the whole measurements array
         synchronized (lock) {
             return new ArrayList<>(measurementsList);
         }
+    }
+
+    public List<ServerMeasurement> getMeasurementsList(int robotId) {
+        // Get measurements from the given robot ID
+        List<ServerMeasurement> results = new ArrayList<>();
+        synchronized (lock) {
+            for (ServerMeasurement sm : measurementsList) {
+                if (sm.getRobotId() == robotId) {
+                    results.add(sm);
+                }
+            }
+        }
+        return results;
+    }
+
+    public List<ServerMeasurement> getMeasurementsList(long t1, long t2) {
+        // Get measurements between two given timestamps
+        List<ServerMeasurement> results = new ArrayList<>();
+        synchronized (lock) {
+            for (ServerMeasurement sm : measurementsList) {
+                long smTs = sm.getTimestamp();
+                if (smTs >= t1 && smTs <= t2) {
+                    results.add(sm);
+                }
+            }
+        }
+        return results;
     }
 
     public int insertMeasurement(ServerMeasurement newMeasurement){
