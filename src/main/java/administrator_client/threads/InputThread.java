@@ -11,6 +11,7 @@ import com.sun.jersey.api.client.GenericType;
 import shared.beans.CleaningRobot;
 import shared.beans.MeasurementsListResponse;
 import shared.beans.RobotListResponse;
+import shared.beans.ServerMeasurement;
 import simulators.Measurement;
 
 import javax.ws.rs.core.MediaType;
@@ -70,14 +71,15 @@ public class InputThread extends Thread {
                     );
 
                     assert measurementsAvgsObj != null;
-                    List<Measurement> measurementsList = measurementsAvgsObj.getMeasurementsList();
+                    List<ServerMeasurement> measurementsList = measurementsAvgsObj.getMeasurementsList();
                     if (measurementsList.isEmpty()) {
                         System.out.println("> AVG_ROBOT: this robot hasn't uploaded any measurement.");
                     } else {
                         System.out.println("> AVG_ROBOT: last " + n + " measurements:");
-                        for (Measurement measurement : measurementsList) {
-                            System.out.println("\n\tTimestamp: " + measurement.getTimestamp() +
-                                    "\n\tValue: " + measurement.getValue() + "\n");
+                        for (ServerMeasurement sm : measurementsList) {
+                            System.out.println("\n\tTimestamp: " + sm.getTimestamp() +
+                                    "\n\tValue: " + sm.getValue() +
+                                    "\n\tDistrict: " + sm.getDistrict() + "\n");
                         }
                     }
                     break;

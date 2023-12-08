@@ -1,27 +1,30 @@
 package shared.beans;
 
-import simulators.Measurement;
-
+import javax.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 import java.util.List;
 
+@XmlRootElement
 public class MeasurementsListResponse {
 
-    private List<Measurement> measurementsList;
+    private final List<AdaptedServerMeasurement> adaptedMeasurementsList;
 
     public MeasurementsListResponse() {
-        measurementsList = new ArrayList<>();
+        adaptedMeasurementsList = new ArrayList<>();
     };
 
-    public MeasurementsListResponse(List<Measurement> measurementsList) {
-        this.measurementsList = measurementsList;
+    public MeasurementsListResponse(List<ServerMeasurement> measurementsList) {
+        adaptedMeasurementsList = new ArrayList<>();
+        for (ServerMeasurement sm : measurementsList) {
+            adaptedMeasurementsList.add(new AdaptedServerMeasurement(sm));
+        }
     }
 
-    public List<Measurement> getMeasurementsList() {
+    public List<ServerMeasurement> getMeasurementsList() {
+        List<ServerMeasurement> measurementsList = new ArrayList<>();
+        for (AdaptedServerMeasurement asm : adaptedMeasurementsList) {
+            measurementsList.add(asm.getServerMeasurement());
+        }
         return measurementsList;
-    }
-
-    public void setMeasurementsList(List<Measurement> measurementsList) {
-        this.measurementsList = measurementsList;
     }
 }

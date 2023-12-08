@@ -1,5 +1,6 @@
 package administrator_server.beans;
 
+import shared.beans.ServerMeasurement;
 import shared.constants.Constants;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -13,33 +14,41 @@ import java.util.List;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class Measurements {
 
-    // TODO: save Measurements in persistent mode (i.e. SQL to be queried)
-
     @XmlElement(name="measurements_set")
     private List<ServerMeasurement> measurementsList;
 
+    private final static Object lock = new Object();
     private static Measurements instance;
 
     private Measurements() { measurementsList = new ArrayList<ServerMeasurement>(); }
 
     // Singleton
-    public synchronized static Measurements getInstance(){
-        if (instance == null)
-            instance = new Measurements();
-        return instance;
+    public static Measurements getInstance(){
+        synchronized (lock) {
+            if (instance == null)
+                instance = new Measurements();
+            return instance;
+        }
     }
 
     public void setMeasurementsList(List<ServerMeasurement> measurementsList) {
-        this.measurementsList = measurementsList;
+        synchronized (lock) {
+            this.measurementsList = measurementsList;
+        }
     }
 
-    public synchronized List<ServerMeasurement> getMeasurementsList() {
-        return new ArrayList<>(measurementsList);
+    public List<ServerMeasurement> getMeasurementsList() {
+        synchronized (lock) {
+            return new ArrayList<>(measurementsList);
+        }
     }
 
-    public synchronized int insertMeasurement(ServerMeasurement newMeasurement){
+    public int insertMeasurement(ServerMeasurement newMeasurement){
         try {
-            measurementsList.add(newMeasurement);
+            synchronized (lock) {
+                measurementsList.add(newMeasurement);
+            }
+
             //System.out.println("New measurement successfully stored.");
             return Constants.STATUS_SUCCESS;
         } catch (Exception e) {

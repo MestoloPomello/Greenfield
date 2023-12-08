@@ -7,13 +7,11 @@
 
 package administrator_server;
 
-import administrator_server.beans.ServerMeasurement;
+import shared.beans.ServerMeasurement;
 import administrator_server.beans.Measurements;
-import com.google.common.reflect.TypeToken;
 import com.sun.jersey.api.container.httpserver.HttpServerFactory;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -21,7 +19,6 @@ import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 
-import io.grpc.Server;
 import org.eclipse.paho.client.mqttv3.*;
 
 import shared.beans.AveragesPayload;
