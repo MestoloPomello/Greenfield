@@ -84,6 +84,7 @@ public class StartServer {
 
                     System.out.println("[PM10] New measurements received - Thread PID: " + Thread.currentThread().getId() +
                             "\n\tTopic: " + topic +
+                            "\n\tRobot ID: " + averagesData.getRobotID() +
                             "\n\tQoS: " + message.getQos() +
                             "\n\tTimestamp: " + averagesData.getTimestamp() +
                             "\n\tPM10 averages: " + strAverages + "\n");

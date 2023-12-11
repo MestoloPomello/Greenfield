@@ -7,17 +7,16 @@ import java.io.Serializable;
 
 public class ServerMeasurement extends Measurement implements Serializable {
 
-    private int district, robotId;
+    private int district;
 
     /*public ServerMeasurement() {
         super("null", "null", -1, -1);
         district = -1;
     }*/
 
-    public ServerMeasurement(int district, int robotId, String id, String type, double value, long timestamp) {
+    public ServerMeasurement(int district, String id, String type, double value, long timestamp) {
         super(id, type, value, timestamp);
         this.district = district;
-        this.robotId = robotId;
     }
 
     public int getDistrict() {
@@ -28,11 +27,7 @@ public class ServerMeasurement extends Measurement implements Serializable {
         this.district = district;
     }
 
-    public int getRobotId() {
-        return robotId;
-    }
-
-    public void setRobotId(int robotId) {
-        this.robotId = robotId;
+    public String toString() {
+        return "[Time: " + getTimestamp() + "] Robot ID: " + getId() + ", district: " + district + ", value: " + getValue();
     }
 }

@@ -34,4 +34,16 @@ public class CleaningRobot extends InputRobot {
     public void setPosY(int posY) {
         this.posY = posY;
     }
+
+    public int getDistrictFromPos() {
+        // Based on the graph in the PDF
+        if (posX < 4) {
+            if (posY < 4) return 1;
+            else return 4;
+        }
+        else {
+            if (posY < 4) return 2;
+            else return 3;
+        }
+    }
 }

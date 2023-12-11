@@ -33,27 +33,26 @@ public class ClientService {
     @Produces({"application/json", "application/xml"})
     public Response avgRobot(@PathParam("robotId") int robotId, @PathParam("n") int n) {
         List<ServerMeasurement> sml = Measurements.getInstance().getMeasurementsList(robotId);
+
         sml.sort(Comparator.comparingLong(Measurement::getTimestamp));
 
         MeasurementsListResponse mlr;
         if (n > sml.size()) {
             mlr = new MeasurementsListResponse(sml);
         } else {
-            mlr = new MeasurementsListResponse(sml.subList(0, n - 1));
+            mlr = new MeasurementsListResponse(sml.subList(0, n));
         }
-
         System.out.println("[Admin Client] Received and satisfied AVG_ROBOT request.");
-
         return Response.ok(mlr).build();
     }
 
     // Lists the air pollution levels sent between timestamps t1 and t2
-    @Path("/avg_timestamps/{t1}/{t2}")
+    @Path("/avg_time/{t1}/{t2}")
     @GET
     @Produces({"application/json", "application/xml"})
     public Response avgTimestamps(@PathParam("t1") long t1, @PathParam("t2") long t2) {
         List<ServerMeasurement> sml = Measurements.getInstance().getMeasurementsList(t1, t2);
-        System.out.println("[Admin Client] Received and satisfied AVG_TIMESTAMPS request.");
+        System.out.println("[Admin Client] Received and satisfied AVG_TIME request.");
         return Response.ok(sml).build();
     }
 }

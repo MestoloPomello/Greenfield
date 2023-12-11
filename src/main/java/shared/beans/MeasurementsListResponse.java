@@ -27,4 +27,13 @@ public class MeasurementsListResponse {
         }
         return measurementsList;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        for (AdaptedServerMeasurement asm : adaptedMeasurementsList) {
+            result.append(asm.getServerMeasurement().toString()).append("\n");
+        }
+        return result.toString();
+    }
 }

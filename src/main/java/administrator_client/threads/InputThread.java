@@ -65,25 +65,63 @@ public class InputThread extends Thread {
                     System.out.print("> AVG_ROBOT: choose the number of measurements: ");
                     String n = scanner.nextLine();
 
-                    MeasurementsListResponse measurementsAvgsObj = getAvgs(
+                    MeasurementsListResponse measurementsAvgsRobotObj = getAvgs(
                             client,
                             serverAddress + "/client/avg_robot/" + robotId + "/" + n
                     );
 
-                    assert measurementsAvgsObj != null;
-                    List<ServerMeasurement> measurementsList = measurementsAvgsObj.getMeasurementsList();
-                    if (measurementsList.isEmpty()) {
+                    if (measurementsAvgsRobotObj == null) {
+                        System.out.println("> AVG_ROBOT: null response.");
+                        break;
+                    }
+
+                    System.out.println("MeasurementsListResponse:" + measurementsAvgsRobotObj);
+
+                    // DA SISTEMARE: risposta vuota
+
+                    List<ServerMeasurement> robotMeasurementsList = measurementsAvgsRobotObj.getMeasurementsList();
+                    if (robotMeasurementsList.isEmpty()) {
                         System.out.println("> AVG_ROBOT: this robot hasn't uploaded any measurement.");
+                        break;
                     } else {
                         System.out.println("> AVG_ROBOT: last " + n + " measurements:");
-                        for (ServerMeasurement sm : measurementsList) {
+                        for (ServerMeasurement sm : robotMeasurementsList) {
                             System.out.println("\n\tTimestamp: " + sm.getTimestamp() +
                                     "\n\tValue: " + sm.getValue() +
                                     "\n\tDistrict: " + sm.getDistrict() + "\n");
                         }
                     }
                     break;
-                case "avg_timestamp":
+                case "avg_time":
+                    System.out.print("> AVG_TIME: enter the first timestamp: ");
+                    String t1 = scanner.nextLine();
+                    System.out.print("> AVG_TIME: enter the second timestamp: ");
+                    String t2 = scanner.nextLine();
+
+                    MeasurementsListResponse measurementsAvgsTimeObj = getAvgs(
+                            client,
+                            serverAddress + "/client/avg_time/" + t1 + "/" + t2
+                    );
+
+                    if (measurementsAvgsTimeObj == null) {
+                        System.out.println("> AVG_TIME: null response.");
+                        break;
+                    }
+
+                    System.out.println("MeasurementsListResponse:" + measurementsAvgsTimeObj);
+
+                    List<ServerMeasurement> timeMeasurementsList = measurementsAvgsTimeObj.getMeasurementsList();
+                    if (timeMeasurementsList.isEmpty()) {
+                        System.out.println("> AVG_TIME: this robot hasn't uploaded any measurement.");
+                        break;
+                    } else {
+                        System.out.println("> AVG_TIME: measurements between " + t1 + " and " + t2 + ":");
+                        for (ServerMeasurement sm : timeMeasurementsList) {
+                            System.out.println("\n\tTimestamp: " + sm.getTimestamp() +
+                                    "\n\tValue: " + sm.getValue() +
+                                    "\n\tDistrict: " + sm.getDistrict() + "\n");
+                        }
+                    }
                     break;
                 default:
                     System.err.println("[ERROR] Unrecognised command.");

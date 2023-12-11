@@ -72,10 +72,11 @@ public class StartCleaningRobot {
                     posX = response.getPosX();
                     posY = response.getPosY();
                     deployedRobots = response.getRegisteredRobots();
-                    district = getDistrictFromPos(posX, posY);
+                    district = response.getDistrictFromPos();
 
                     System.out.println("[SUCCESS] New robot accepted from the server." +
                             "\n\tID: " + id +
+                            "\n\tDistrict: " + district +
                             "\n\tStarting PosX: " + posX +
                             "\n\tStarting PosY: " + posY +
                             "\n\tPort: " + portNumber + "\n");
@@ -143,17 +144,6 @@ public class StartCleaningRobot {
         }
     }
 
-    public static int getDistrictFromPos(int posX, int posY) {
-        // Based on the graph in the PDF
-        if (posX < 4) {
-            if (posY < 4) return 1;
-            else return 4;
-        }
-        else {
-            if (posY < 4) return 2;
-            else return 3;
-        }
-    }
 
     public static void createNewRCS (int otherRobotPort, List<CleaningRobot> deployedRobots) {
         try {

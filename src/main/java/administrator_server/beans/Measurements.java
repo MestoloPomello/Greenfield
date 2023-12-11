@@ -50,7 +50,7 @@ public class Measurements {
         List<ServerMeasurement> results = new ArrayList<>();
         synchronized (lock) {
             for (ServerMeasurement sm : measurementsList) {
-                if (sm.getRobotId() == robotId) {
+                if (Integer.parseInt(sm.getId()) == robotId) {
                     results.add(sm);
                 }
             }

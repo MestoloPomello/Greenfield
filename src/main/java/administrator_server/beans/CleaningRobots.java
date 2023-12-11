@@ -10,6 +10,7 @@
 
     import java.util.ArrayList;
     import java.util.List;
+    import java.util.concurrent.ThreadLocalRandom;
 
     import javax.xml.bind.annotation.XmlAccessType;
     import javax.xml.bind.annotation.XmlAccessorType;
@@ -67,23 +68,25 @@
                         throw new DuplicatedIdException("Couldn't add a new robot");
                     }
 
-                    // DA SISTEMARE: vanno generati
-                    int posX = 0, posY = 0;
+                    // Select the district based on the numbers of robots for each one
+                    int district = selectDistrict(deployedRobots);
+                    // Generate a position within that district
+                    int[] position = generateCoordinatesForDistrict(district);
 
                     deployedRobots.add(new CleaningRobot(
                             newId,
                             newRobot.getPort(),
                             Constants.SERVER_ADDR,
-                            posX,
-                            posY
+                            position[0],
+                            position[1]
                     ));
 
                     return new RobotCreationResponse(
                             newId,
                             newPort,
                             Constants.SERVER_ADDR,
-                            posX,
-                            posY,
+                            position[0],
+                            position[1],
                             Constants.STATUS_SUCCESS,
                             deployedRobots
                     );
@@ -156,6 +159,47 @@
                 e.printStackTrace();
                 return Constants.ERR_UNKNOWN;
             }
+        }
+
+        private static int selectDistrict(List<CleaningRobot> deployedRobots) {
+            // Returns a district based on the number of robots in each one
+            int[] districtRobots = new int[4];
+
+            for (CleaningRobot cr : deployedRobots) {
+                districtRobots[cr.getDistrictFromPos() - 1]++;
+            }
+
+            int minIndex = 0, minNumber = districtRobots[0];
+            for (int i = 1; i < 4; i++) {
+                if (districtRobots[i] < minNumber) {
+                    minNumber = districtRobots[i];
+                    minIndex = i;
+                }
+            }
+            return minIndex + 1;
+        }
+
+        private static int[] generateCoordinatesForDistrict(int district) {
+            int[] pos = new int[2]; // pos[i] = [x, y] coordinates
+            switch (district) {
+                case 1:
+                    pos[0] = ThreadLocalRandom.current().nextInt(0, 5);
+                    pos[1] = ThreadLocalRandom.current().nextInt(0, 5);
+                    break;
+                case 2:
+                    pos[0] = ThreadLocalRandom.current().nextInt(0, 5);
+                    pos[1] = ThreadLocalRandom.current().nextInt(5, 10);
+                    break;
+                case 3:
+                    pos[0] = ThreadLocalRandom.current().nextInt(5, 10);
+                    pos[1] = ThreadLocalRandom.current().nextInt(5, 10);
+                    break;
+                case 4:
+                    pos[0] = ThreadLocalRandom.current().nextInt(5, 10);
+                    pos[1] = ThreadLocalRandom.current().nextInt(0, 5);
+                    break;
+            }
+            return pos;
         }
 
     }
