@@ -20,8 +20,8 @@ import java.util.List;
 public class InputThread extends Thread {
 
     private volatile boolean running = true;
-    private Client client;
-    private String serverAddress;
+    private final Client client;
+    private final String serverAddress;
 
     public InputThread(Client client, String serverAddress) {
         this.client = client;
@@ -53,6 +53,7 @@ public class InputThread extends Thread {
                         System.out.println("> LIST: ");
                         for (CleaningRobot robot : deployedRobots) {
                             System.out.println("\n\tID: " + robot.getId() +
+                                    "\n\tDistrict: " + robot.getDistrictFromPos() +
                                     "\n\tPosition: (" + robot.getPosX() + "," + robot.getPosY() + ")" +
                                     "\n\tPort: " + robot.getPort() + "\n");
                         }

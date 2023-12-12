@@ -17,7 +17,7 @@ public class InputThread extends Thread {
 
         while (running) {
             //try {
-                System.out.print("> Insert a command for this robot (ID: " + robotId + "): ");
+                //System.out.print("> Insert a command for this robot (ID: " + robotId + "): ");
                 String command = scanner.nextLine();
 
                 switch(command) {

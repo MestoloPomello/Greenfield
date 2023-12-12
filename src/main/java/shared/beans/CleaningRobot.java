@@ -46,4 +46,9 @@ public class CleaningRobot extends InputRobot {
             else return 3;
         }
     }
+
+    @Override
+    public String toString() {
+        return "ID: " + getId() + " | Port: " + getPort() + " | Pos: [" + posX + ", " + posY + "]";
+    }
 }

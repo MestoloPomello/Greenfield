@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import io.grpc.ServerBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import shared.beans.BufferImpl;
 import shared.constants.Constants;
@@ -41,7 +42,7 @@ public class StartCleaningRobot {
     static int district;
     static List<CleaningRobot> deployedRobots;
     static LamportTimestamp timestamp;
-
+    static CleaningRobot selfReference;
 
     public static void main(String[] args) throws IOException {
 
@@ -87,6 +88,15 @@ public class StartCleaningRobot {
                     throw new Exception("Unknown status");
             }
 
+            // Presents itself to other robots
+            for (CleaningRobot otherRobot : deployedRobots) {
+                if (otherRobot.getId() != id) { // Only consider other robots
+                    sendMessageToOtherRobot(otherRobot.getPort(), Constants.HELLO);
+                } else {
+                    selfReference = otherRobot;
+                }
+            }
+
             // Create objects
             Buffer buffer = new BufferImpl();
             PM10Simulator simulator = new PM10Simulator(buffer);
@@ -104,16 +114,8 @@ public class StartCleaningRobot {
             InputThread inputThread = new InputThread(id);
             inputThread.start();
 
-            // Opens connections with other robots + presents itself
-            for (CleaningRobot otherRobot : deployedRobots) {
-                if (otherRobot.getId() != id) { // Only consider other robots
-                    // Opens listening connections with other robots (as a server)
-                    createNewRCS(otherRobot.getPort(), deployedRobots);
-
-                    // Presents itself to other robots (as a client)
-                    sendMessageToOtherRobot(otherRobot.getPort(), Constants.HELLO);
-                }
-            }
+            // Opens listening connection for other robots
+            createNewRCS(deployedRobots);
 
         } catch (DuplicatedIdException e) {
             e.printStackTrace();
@@ -145,12 +147,20 @@ public class StartCleaningRobot {
     }
 
 
-    public static void createNewRCS (int otherRobotPort, List<CleaningRobot> deployedRobots) {
+    public static void createNewRCS (List<CleaningRobot> deployedRobots) {
         try {
-            // To be called for every external robot
-            io.grpc.Server server = ServerBuilder.forPort(otherRobotPort).addService(new RobotCommunicationServiceImpl(deployedRobots)).build();
+            RobotCommunicationServiceImpl service = new RobotCommunicationServiceImpl(
+                    selfReference,
+                    deployedRobots,
+                    timestamp
+            );
+            io.grpc.Server server = ServerBuilder
+                    .forPort(portNumber)
+                    .addService(service)
+                    .build();
+            service.setServer(server);
             server.start();
-            System.out.println("> Robot's RCS: opened listening service for robot with port " + otherRobotPort);
+            System.out.println("> Robot's RCS: opened listening service for other robots.");
             server.awaitTermination();
         } catch (IOException e) {
             System.err.println("[createNewRCS] IOException: " + e.getMessage());
@@ -168,7 +178,7 @@ public class StartCleaningRobot {
         StreamObserver<RobotMessage> robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
             public void onNext(RobotMessage robotMessage) {
 
-                System.out.println("> Message received from robot with port " + otherRobotPort + ": " + robotMessage.getMessage());
+                System.out.println("> Response received from robot with port " + otherRobotPort + ": " + robotMessage.getMessage());
 
                 // Response handling is based on the type of message sent
 //                switch (msg) {
@@ -184,6 +194,7 @@ public class StartCleaningRobot {
             }
 
             public void onError(Throwable throwable) {
+                throwable.printStackTrace();
             }
 
             public void onCompleted() {
@@ -197,21 +208,24 @@ public class StartCleaningRobot {
                 + "\n\tTimestamp: " + timestamp.getTimestamp()
                 + "\n\tMessage: " + msg);
 
-        robotStream.onNext(RobotMessage.newBuilder()
-                        .setSenderId(id)
-                        .setSenderPort(otherRobotPort)
-                        .setTimestamp(timestamp.getTimestamp())
-                        .setStartingPosX(posX)
-                        .setStartingPosY(posY)
-                        .setMessage(msg)
-                .build());
+        try {
+            robotStream.onNext(RobotMessage.newBuilder()
+                    .setSenderId(id)
+                    .setSenderPort(otherRobotPort)
+                    .setTimestamp(timestamp.getTimestamp())
+                    .setStartingPosX(posX)
+                    .setStartingPosY(posY)
+                    .setMessage(msg)
+                    .build());
+        } catch (StatusRuntimeException e) {
+            e.printStackTrace();
+        }
 
         try {
             channel.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 }
 
