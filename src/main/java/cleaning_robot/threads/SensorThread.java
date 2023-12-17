@@ -39,7 +39,7 @@ public class SensorThread extends Thread {
         MqttClient client = setupMqttClient();
         if (client == null) {
             running = false;
-            System.err.println("SetupMqttClient returned null.");
+            System.err.println("[ERROR] SetupMqttClient returned null.");
             return;
         }
 
@@ -67,10 +67,14 @@ public class SensorThread extends Thread {
             message.setQos(Constants.QOS[district - 1]);
             try {
                 client.publish(Constants.TOPICS[district - 1], message);
-                System.out.println("[SensorThread] Measurement averages successfully published on the MQTT broker.");
+                System.out.println("[MEASUREMENT] TS: " + timestamp.getTimestamp() + " | Averages successfully published on the MQTT broker.");
             } catch (MqttException e) {
-                System.err.println("[ERROR] Failed while publishing the measurement on MQTT broker.");
-                e.printStackTrace();
+                if (!running) {
+                    System.out.println("[MEASUREMENT] Stopped publishing measurements.");
+                } else {
+                    System.err.println("[ERROR] Failed while publishing the measurement on MQTT broker.");
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -88,7 +92,7 @@ public class SensorThread extends Thread {
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(true);
             client.connect(connOpts);
-            System.out.println("Successfully connected to the MQTT broker.");
+            System.out.println("[MQTT] Successfully connected to the MQTT broker.");
         } catch (MqttException e) {
             System.out.println("[ERROR] Couldn't connect to the MQTT broker.");
             e.printStackTrace();
@@ -116,5 +120,4 @@ public class SensorThread extends Thread {
             }
         }
     }
-
 }

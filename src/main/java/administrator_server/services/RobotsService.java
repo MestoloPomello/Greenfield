@@ -20,11 +20,11 @@ public class RobotsService {
 
         switch(addResult.getStatus()) {
             case Constants.STATUS_SUCCESS:
-                System.out.println("> Accepted insert request from robot with ID " +
+                System.out.println("[Robot] Accepted insert request from robot with ID " +
                         newRobot.getId() + " and port " + newRobot.getPort());
                 return Response.ok(addResult).build();
             case Constants.ERR_DUPED_ID:
-                System.out.println("> Refused insert request from robot with duped ID " +
+                System.out.println("[Robot] Refused insert request from robot with duped ID " +
                         newRobot.getId() + " and port " + newRobot.getPort());
                 return Response.status(Response.Status.NOT_ACCEPTABLE).build();
             default:
@@ -63,5 +63,13 @@ public class RobotsService {
             default:
                 return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    // Deletes an existing deployed robot
+    @Path("/crash/{id}")
+    @DELETE
+    public Response robotCrashed(@PathParam("id") int id) {
+        CleaningRobots.getInstance().removeCrashedRobot(id);
+        return Response.ok().build();
     }
 }

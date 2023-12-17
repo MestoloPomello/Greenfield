@@ -45,6 +45,12 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
             public void onNext(RobotMessage robotMessage) {
 
                 final String msg = robotMessage.getMessage();
+                System.out.println("[IN] From ("
+                        + robotMessage.getSenderId()
+                        + ": "
+                        + robotMessage.getSenderPort()
+                        + "): "
+                        + msg);
 
                 try {
                     switch (msg) {
@@ -58,7 +64,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     robotMessage.getStartingPosY()
                             ));
 
-                            System.out.println("> HELLO: acknowledged robot with port " +
+                            System.out.println("[HELLO] Acknowledged robot with port " +
                                     robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
 
                             // Compare and increase the local timestamp with the one received from the new robot
@@ -76,9 +82,9 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             break;
                         case Constants.QUIT:
                             deployedRobots.removeIf(cr -> cr.getId() == robotMessage.getSenderId());
-                            server.shutdown();
+                            //server.shutdown();
 
-                            System.out.println("> QUIT: acknowledged that robot with ID "
+                            System.out.println("[QUIT] Acknowledged that robot with ID "
                                     + robotMessage.getSenderId() + " has quit Greenfield.");
                             break;
                         case Constants.REQ_MECHANIC:
@@ -86,7 +92,15 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                         case Constants.PING:
                             break;
                         default:
-                            throw new UnrecognisedMessageException(msg);
+                            // Crashed robot message - crash_{id}
+                            try {
+                                int crashedRobot = Integer.parseInt(robotMessage.getMessage().split("_")[1]);
+                                deployedRobots.removeIf(cr -> cr.getId() == crashedRobot);
+                                System.out.println("[CRASH] Acknowledged that robot with ID "
+                                        + crashedRobot + " has crashed.");
+                            } catch (Exception e){
+                                throw new UnrecognisedMessageException(msg);
+                            }
                     }
                 } catch (UnrecognisedMessageException e) {
                     e.printStackTrace();

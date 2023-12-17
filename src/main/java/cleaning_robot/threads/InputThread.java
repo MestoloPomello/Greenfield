@@ -1,14 +1,27 @@
 package cleaning_robot.threads;
 
+import cleaning_robot.StartCleaningRobot;
+import com.sun.jersey.api.client.Client;
+import shared.beans.CleaningRobot;
+import shared.beans.RobotCreationResponse;
+import shared.constants.Constants;
+import simulators.PM10Simulator;
+
 import java.io.IOException;
 import java.util.Scanner;
 
 public class InputThread extends Thread {
     private volatile boolean running = true;
-    private final int robotId;
+    private final CleaningRobot parentRobot;
+    private final Client serverClient;
+    private final PM10Simulator simulator;
+    private final SensorThread sensorThread;
 
-    public InputThread(int robotId) {
-        this.robotId = robotId;
+    public InputThread(CleaningRobot parentRobot, Client serverClient, PM10Simulator simulator, SensorThread sensorThread) {
+        this.parentRobot = parentRobot;
+        this.serverClient = serverClient;
+        this.simulator = simulator;
+        this.sensorThread = sensorThread;
     }
 
     @Override
@@ -16,28 +29,31 @@ public class InputThread extends Thread {
         Scanner scanner = new Scanner(System.in);
 
         while (running) {
-            //try {
-                //System.out.print("> Insert a command for this robot (ID: " + robotId + "): ");
                 String command = scanner.nextLine();
 
                 switch(command) {
                     case "fix":
 
                         break;
-                    case "quit":
+                    case Constants.QUIT:
                         // finire operazioni meccanico
-                        // notificare gli altri robot via grpc
-                        // richiedere al server di poter lasciare greenfield
+
+                        simulator.stopMeGently();
+                        sensorThread.stopThread();
+
+                        // Notify other robots
+                        StartCleaningRobot.broadcastMessage(Constants.QUIT);
+
+                        // Notify the server
+                        StartCleaningRobot.deleteRequest(StartCleaningRobot.serverAddress + "/robot/" + parentRobot.getId());
+
+                        System.out.println("[QUIT] Server acknowledged.");
+
                         stopThread();
                         break;
                     default:
                         System.out.println("[ERROR] Unrecognised command.");
                 }
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            }
         }
     }
 

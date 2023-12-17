@@ -29,4 +29,6 @@ public final class Constants {
     public static final String QUIT = "quit";
     public static final String REQ_MECHANIC = "req_mechanic";
     public static final String PING = "ping";
+    public static final String PONG = "pong";
+
 }

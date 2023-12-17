@@ -34,9 +34,9 @@ public class LamportTimestamp {
 
     public int compareAndIncreaseTimestamp(int receivedTimestamp) {
         if (receivedTimestamp > timestamp) {
-            timestamp = receivedTimestamp;
+            timestamp = receivedTimestamp + 1;
         }
-        return ++timestamp;
+        return timestamp;
     }
 
 }

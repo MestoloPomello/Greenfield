@@ -1,5 +1,6 @@
 package cleaning_robot.threads;
 
+import cleaning_robot.StartCleaningRobot;
 import shared.beans.CleaningRobot;
 
 import java.util.Iterator;
@@ -14,16 +15,15 @@ import shared.constants.Constants;
 
 public class HealthCheckThread extends Thread {
     private volatile boolean running = true;
-    private int myId, myPortNumber;
+    private CleaningRobot parentRobot;
     private boolean needsFix, hasToken;
     private List<CleaningRobot> deployedRobots;
 
-    public HealthCheckThread(int myId, int myPortNumber, List<CleaningRobot> deployedRobots) {
+    public HealthCheckThread(CleaningRobot parentRobot, List<CleaningRobot> deployedRobots) {
         super();
         needsFix = false;
         hasToken = false;
-        this.myId = myId;
-        this.myPortNumber = myPortNumber;
+        this.parentRobot = parentRobot;
         this.deployedRobots = deployedRobots;
     }
 
@@ -55,6 +55,13 @@ public class HealthCheckThread extends Thread {
                 TimeUnit.SECONDS.sleep(10);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            }
+
+            // Crash-check the next robot, but only if there is at least another one
+            if (deployedRobots.size() > 1) {
+                CleaningRobot nextRobot = findNextRobot();
+                System.out.println("[CHECK] Checking if robot " + nextRobot.getId() + " is alive...");
+                StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING);
             }
 
             if (!needsFix) {
@@ -97,5 +104,16 @@ public class HealthCheckThread extends Thread {
     public void stopThread() {
         running = false;
         interrupt();
+    }
+
+    public CleaningRobot findNextRobot() {
+        int currentIndex = deployedRobots.indexOf(parentRobot);
+        if (currentIndex == deployedRobots.size() - 1) {
+            // If it's the last, return the first robot's port
+            return deployedRobots.get(0);
+        } else {
+            // Else return the next robot's port
+            return deployedRobots.get(currentIndex + 1);
+        }
     }
 }

@@ -150,7 +150,7 @@
 
                     deployedRobots.remove(tbrIndex);
                 }
-
+                System.out.println("[QUTI] Acknowledged that robot " + id + " has quit.");
                 return Constants.STATUS_SUCCESS;
             } catch (NoIdException e) {
                 e.printStackTrace();
@@ -160,6 +160,14 @@
                 return Constants.ERR_UNKNOWN;
             }
         }
+
+        public void removeCrashedRobot(int robotId) {
+            deployedRobots.removeIf(cr -> cr.getId() == robotId);
+            System.out.println("[CRASH] Acknownledged crash of robot with ID " + robotId);
+        }
+
+
+        // Local functions
 
         private static int selectDistrict(List<CleaningRobot> deployedRobots) {
             // Returns a district based on the number of robots in each one
