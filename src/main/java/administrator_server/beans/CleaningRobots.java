@@ -10,12 +10,13 @@
 
     import java.util.ArrayList;
     import java.util.List;
-    import java.util.concurrent.ThreadLocalRandom;
 
     import javax.xml.bind.annotation.XmlAccessType;
     import javax.xml.bind.annotation.XmlAccessorType;
     import javax.xml.bind.annotation.XmlElement;
     import javax.xml.bind.annotation.XmlRootElement;
+
+    import static shared.utils.Utils.getRandomInt;
 
     @XmlRootElement
     @XmlAccessorType (XmlAccessType.FIELD)
@@ -162,7 +163,9 @@
         }
 
         public void removeCrashedRobot(int robotId) {
-            deployedRobots.removeIf(cr -> cr.getId() == robotId);
+            synchronized (lock) {
+                deployedRobots.removeIf(cr -> cr != null && cr.getId() == robotId);
+            }
             System.out.println("[CRASH] Acknownledged crash of robot with ID " + robotId);
         }
 
@@ -191,20 +194,20 @@
             int[] pos = new int[2]; // pos[i] = [x, y] coordinates
             switch (district) {
                 case 1:
-                    pos[0] = ThreadLocalRandom.current().nextInt(0, 5);
-                    pos[1] = ThreadLocalRandom.current().nextInt(0, 5);
+                    pos[0] = getRandomInt(0, 4);
+                    pos[1] = getRandomInt(0, 4);
                     break;
                 case 2:
-                    pos[0] = ThreadLocalRandom.current().nextInt(0, 5);
-                    pos[1] = ThreadLocalRandom.current().nextInt(5, 10);
+                    pos[0] = getRandomInt(0, 4);
+                    pos[1] = getRandomInt(5, 9);
                     break;
                 case 3:
-                    pos[0] = ThreadLocalRandom.current().nextInt(5, 10);
-                    pos[1] = ThreadLocalRandom.current().nextInt(5, 10);
+                    pos[0] = getRandomInt(5, 9);
+                    pos[1] = getRandomInt(5, 9);
                     break;
                 case 4:
-                    pos[0] = ThreadLocalRandom.current().nextInt(5, 10);
-                    pos[1] = ThreadLocalRandom.current().nextInt(0, 5);
+                    pos[0] = getRandomInt(5, 9);
+                    pos[1] = getRandomInt(0, 4);
                     break;
             }
             return pos;

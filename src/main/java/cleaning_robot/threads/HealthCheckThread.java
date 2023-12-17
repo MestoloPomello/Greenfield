@@ -1,12 +1,12 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
+import cleaning_robot.beans.DeployedRobots;
 import shared.beans.CleaningRobot;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import java.net.Socket;
 //import cleaning_robot.proto.ResearcherOuterClass.Researcher;
@@ -17,9 +17,9 @@ public class HealthCheckThread extends Thread {
     private volatile boolean running = true;
     private CleaningRobot parentRobot;
     private boolean needsFix, hasToken;
-    private List<CleaningRobot> deployedRobots;
+    private DeployedRobots deployedRobots;
 
-    public HealthCheckThread(CleaningRobot parentRobot, List<CleaningRobot> deployedRobots) {
+    public HealthCheckThread(CleaningRobot parentRobot, DeployedRobots deployedRobots) {
         super();
         needsFix = false;
         hasToken = false;
@@ -48,26 +48,27 @@ public class HealthCheckThread extends Thread {
 
     @Override
     public void run() {
-        Random random = new Random();
+//        Random random = new Random();
 
         while (running) {
             try {
-                TimeUnit.SECONDS.sleep(10);
+                Thread.sleep(10000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
 
             // Crash-check the next robot, but only if there is at least another one
-            if (deployedRobots.size() > 1) {
+            // DA SISTEMARE - in caso di crash sembra che chiami il server più volte
+            if (deployedRobots.getNumber() > 1) {
                 CleaningRobot nextRobot = findNextRobot();
                 System.out.println("[CHECK] Checking if robot " + nextRobot.getId() + " is alive...");
                 StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING);
             }
 
-            if (!needsFix) {
-                // If the robot is normally working
-                needsFix = random.nextDouble() < 0.1;
-            }
+//            if (!needsFix) {
+//                // If the robot is normally working
+//                needsFix = random.nextDouble() < 0.1;
+//            }
 
 //            if (needsFix) {
 //                /*hasToken = false;
@@ -107,13 +108,13 @@ public class HealthCheckThread extends Thread {
     }
 
     public CleaningRobot findNextRobot() {
-        int currentIndex = deployedRobots.indexOf(parentRobot);
-        if (currentIndex == deployedRobots.size() - 1) {
+        int currentIndex = deployedRobots.getRobotIndex(parentRobot);
+        if (currentIndex == deployedRobots.getNumber() - 1) {
             // If it's the last, return the first robot's port
-            return deployedRobots.get(0);
+            return deployedRobots.getRobotByIndex(0);
         } else {
             // Else return the next robot's port
-            return deployedRobots.get(currentIndex + 1);
+            return deployedRobots.getRobotByIndex(currentIndex + 1);
         }
     }
 }

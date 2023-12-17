@@ -20,9 +20,10 @@ public class LamportTimestamp {
         }
     }
 
-    public void increaseTimestamp() {
+    public int increaseTimestamp() {
         synchronized (tsLock) {
             timestamp += tsOffset;
+            return timestamp;
         }
     }
 
@@ -33,10 +34,12 @@ public class LamportTimestamp {
     }
 
     public int compareAndIncreaseTimestamp(int receivedTimestamp) {
-        if (receivedTimestamp > timestamp) {
-            timestamp = receivedTimestamp + 1;
+        synchronized (tsLock) {
+            if (receivedTimestamp > timestamp) {
+                timestamp = receivedTimestamp + 1;
+            }
+            return timestamp;
         }
-        return timestamp;
     }
 
 }

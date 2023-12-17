@@ -1,5 +1,6 @@
 package cleaning_robot;
 
+import cleaning_robot.beans.DeployedRobots;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.*;
 import cleaning_robot.proto.RobotMessageOuterClass.*;
 import io.grpc.Server;
@@ -16,13 +17,13 @@ import java.util.List;
 public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImplBase {
 
     CleaningRobot parentRobot;
-    List<CleaningRobot> deployedRobots;
+    DeployedRobots deployedRobots;
     io.grpc.Server server;
     LamportTimestamp timestamp;
 
     public RobotCommunicationServiceImpl() { super(); }
 
-    public RobotCommunicationServiceImpl(CleaningRobot parentRobot, List<CleaningRobot> deployedRobots, LamportTimestamp timestamp) {
+    public RobotCommunicationServiceImpl(CleaningRobot parentRobot, DeployedRobots deployedRobots, LamportTimestamp timestamp) {
         super();
         this.parentRobot = parentRobot;
         this.deployedRobots = deployedRobots;
@@ -52,11 +53,14 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                         + "): "
                         + msg);
 
+                // Compare and increase the local timestamp with the one received
+                int newTimestamp = timestamp.compareAndIncreaseTimestamp(robotMessage.getTimestamp());
+
                 try {
                     switch (msg) {
                         case Constants.HELLO:
                             // Saving robot in local list
-                            deployedRobots.add(new CleaningRobot(
+                            deployedRobots.insertRobot(new CleaningRobot(
                                     robotMessage.getSenderId(),
                                     robotMessage.getSenderPort(),
                                     Constants.SERVER_ADDR,
@@ -66,9 +70,6 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 
                             System.out.println("[HELLO] Acknowledged robot with port " +
                                     robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
-
-                            // Compare and increase the local timestamp with the one received from the new robot
-                            int newTimestamp = timestamp.compareAndIncreaseTimestamp(robotMessage.getTimestamp());
 
                             // Ack response
                             responseObserver.onNext(RobotMessage.newBuilder()
@@ -81,7 +82,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     .build());
                             break;
                         case Constants.QUIT:
-                            deployedRobots.removeIf(cr -> cr.getId() == robotMessage.getSenderId());
+                            deployedRobots.deleteRobot(robotMessage.getSenderId());
                             //server.shutdown();
 
                             System.out.println("[QUIT] Acknowledged that robot with ID "
@@ -90,12 +91,24 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                         case Constants.REQ_MECHANIC:
                             break;
                         case Constants.PING:
+
+                            responseObserver.onNext(RobotMessage.newBuilder()
+                                    .setSenderId(parentRobot.getId())
+                                    .setSenderPort(parentRobot.getPort())
+                                    .setTimestamp(newTimestamp)
+                                    .setStartingPosX(parentRobot.getPosX())
+                                    .setStartingPosY(parentRobot.getPosY())
+                                    .setMessage(Constants.PONG)
+                                    .build());
+
+                            System.out.println("[PING] Received and replied ping from robot "
+                                    + robotMessage.getSenderId());
                             break;
                         default:
                             // Crashed robot message - crash_{id}
                             try {
                                 int crashedRobot = Integer.parseInt(robotMessage.getMessage().split("_")[1]);
-                                deployedRobots.removeIf(cr -> cr.getId() == crashedRobot);
+                                deployedRobots.deleteRobot(crashedRobot);
                                 System.out.println("[CRASH] Acknowledged that robot with ID "
                                         + crashedRobot + " has crashed.");
                             } catch (Exception e){

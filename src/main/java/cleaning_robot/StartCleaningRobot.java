@@ -1,5 +1,6 @@
 package cleaning_robot;
 
+import cleaning_robot.beans.DeployedRobots;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServiceStub;
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
@@ -31,9 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 
 import static shared.utils.Utils.getRandomInt;
 
@@ -43,7 +41,7 @@ public class StartCleaningRobot {
     public static String serverAddress = "http://" + Constants.SERVER_ADDR + ":" + Constants.SERVER_PORT;
     private static int id, posX, posY, portNumber;
     private static int district;
-    private static List<CleaningRobot> deployedRobots;
+    private static DeployedRobots deployedRobots;
     private static LamportTimestamp timestamp;
     private static CleaningRobot selfReference;
     private static Client client;
@@ -75,7 +73,7 @@ public class StartCleaningRobot {
                 case Constants.STATUS_SUCCESS:
                     posX = response.getPosX();
                     posY = response.getPosY();
-                    deployedRobots = response.getRegisteredRobots();
+                    deployedRobots = new DeployedRobots(response.getRegisteredRobots());
                     district = response.getDistrictFromPos();
 
                     System.out.println("[SUCCESS] New robot accepted from the server." +
@@ -115,15 +113,15 @@ public class StartCleaningRobot {
                     sensorThread);
             inputThread.start();
 
-            // Opens listening connection for other robots
-            createNewRCS(deployedRobots);
-
             // Start health check thread
             HealthCheckThread healthCheck = new HealthCheckThread(
                     selfReference,
                     deployedRobots
             );
             healthCheck.start();
+
+            // Opens listening connection for other robots
+            createNewRCS(deployedRobots);
 
         } catch (DuplicatedIdException e) {
             e.printStackTrace();
@@ -175,13 +173,13 @@ public class StartCleaningRobot {
         }
     }
 
-    public static void createNewRCS (List<CleaningRobot> deployedRobots) {
-        List<CleaningRobot> deployedRobotsWithoutSelf = new ArrayList<>(deployedRobots);
-        deployedRobotsWithoutSelf.remove(selfReference);
+    public static void createNewRCS (DeployedRobots deployedRobots) {
+//        List<CleaningRobot> deployedRobotsWithoutSelf = new ArrayList<>(deployedRobots);
+//        deployedRobotsWithoutSelf.remove(selfReference);
         try {
             RobotCommunicationServiceImpl service = new RobotCommunicationServiceImpl(
                     selfReference,
-                    deployedRobotsWithoutSelf,
+                    deployedRobots,
                     timestamp
             );
             io.grpc.Server server = ServerBuilder
@@ -227,7 +225,7 @@ public class StartCleaningRobot {
                 System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
 
                 // Delete the robot from the list
-                deployedRobots.removeIf(cr -> cr.getId() == otherRobot.getId());
+                deployedRobots.deleteRobot(otherRobot.getId());
 
                 // Notify the server that the robot crashed
                 notifyRobotCrash(otherRobot.getId());
@@ -241,7 +239,7 @@ public class StartCleaningRobot {
         });
 
         try {
-            timestamp.increaseTimestamp();
+            int newTimestamp = timestamp.increaseTimestamp();
             System.out.println("[OUT] To "
                     + otherRobot.getPort()
                     + " "
@@ -251,8 +249,8 @@ public class StartCleaningRobot {
                     + " | Msg: " + msg);
             robotStream.onNext(RobotMessage.newBuilder()
                     .setSenderId(id)
-                    .setSenderPort(otherRobot.getPort())
-                    .setTimestamp(timestamp.getTimestamp())
+                    .setSenderPort(portNumber)
+                    .setTimestamp(newTimestamp)
                     .setStartingPosX(posX)
                     .setStartingPosY(posY)
                     .setMessage(msg)
@@ -270,25 +268,27 @@ public class StartCleaningRobot {
 
     public static void broadcastMessage(String message) {
         // Sends a message to all of the other robots
-        ExecutorService executor = Executors.newFixedThreadPool(deployedRobots.size());
+        List<Thread> threads = new ArrayList<>();
 
-        for (CleaningRobot otherRobot : deployedRobots) {
-            if (otherRobot.getId() != id) { // Only consider other robots
-                executor.submit(() -> sendMessageToOtherRobot(otherRobot, message));
-            } else {
-                selfReference = otherRobot;
+        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
+            if (otherRobot != null) {
+                if (otherRobot.getId() != id) {
+                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));
+                    thread.start();
+                    threads.add(thread);
+                } else {
+                    selfReference = otherRobot;
+                }
             }
         }
 
-        executor.shutdown();
-        try {
-            // Timeout for execution
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
+        // Wait for all the threads to end
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
         }
     }
 

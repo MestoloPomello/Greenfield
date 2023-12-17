@@ -4,7 +4,6 @@ import administrator_server.beans.Measurements;
 import shared.beans.ServerMeasurement;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 public class Mechanic {
     //boolean hasToken = false;
@@ -33,7 +32,7 @@ public class Mechanic {
 //            }
 //        } else {
 //            try {
-//                TimeUnit.SECONDS.sleep(10);
+//                Thread.sleep(10000);
 //            } catch (InterruptedException e) {
 //                throw new RuntimeException(e);
 //            }

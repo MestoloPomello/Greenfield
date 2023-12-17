@@ -9,7 +9,6 @@ import shared.utils.LamportTimestamp;
 import simulators.Buffer;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.paho.client.mqttv3.*;
 import simulators.Measurement;
@@ -45,7 +44,7 @@ public class SensorThread extends Thread {
 
         while (running) {
             try {
-                TimeUnit.SECONDS.sleep(15);
+                Thread.sleep(15000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
