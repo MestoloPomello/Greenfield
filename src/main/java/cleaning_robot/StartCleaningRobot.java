@@ -31,6 +31,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 import static shared.utils.Utils.getRandomInt;
 
@@ -267,12 +270,25 @@ public class StartCleaningRobot {
 
     public static void broadcastMessage(String message) {
         // Sends a message to all of the other robots
+        ExecutorService executor = Executors.newFixedThreadPool(deployedRobots.size());
+
         for (CleaningRobot otherRobot : deployedRobots) {
             if (otherRobot.getId() != id) { // Only consider other robots
-                sendMessageToOtherRobot(otherRobot, message);
+                executor.submit(() -> sendMessageToOtherRobot(otherRobot, message));
             } else {
                 selfReference = otherRobot;
             }
+        }
+
+        executor.shutdown();
+        try {
+            // Timeout for execution
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
