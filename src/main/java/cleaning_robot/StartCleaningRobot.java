@@ -6,6 +6,7 @@ import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServ
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
 import cleaning_robot.threads.HealthCheckThread;
 import cleaning_robot.threads.InputThread;
+import cleaning_robot.threads.RcsThread;
 import cleaning_robot.threads.SensorThread;
 import com.google.gson.Gson;
 import com.sun.jersey.api.client.Client;
@@ -75,6 +76,7 @@ public class StartCleaningRobot {
                     posY = response.getPosY();
                     deployedRobots = new DeployedRobots(response.getRegisteredRobots());
                     district = response.getDistrictFromPos();
+                    selfReference = deployedRobots.getSelfReference(id);
 
                     System.out.println("[SUCCESS] New robot accepted from the server." +
                             "\n\tID: " + id +
@@ -88,6 +90,10 @@ public class StartCleaningRobot {
                 default:
                     throw new Exception("Unknown status");
             }
+
+            // Open listening connection for other robots
+            RcsThread rcsThread = new RcsThread(selfReference, deployedRobots, timestamp);
+            rcsThread.start();
 
             // Presents itself to other robots
             broadcastMessage(Constants.HELLO);
@@ -119,9 +125,6 @@ public class StartCleaningRobot {
                     deployedRobots
             );
             healthCheck.start();
-
-            // Opens listening connection for other robots
-            createNewRCS(deployedRobots);
 
         } catch (DuplicatedIdException e) {
             e.printStackTrace();
@@ -170,32 +173,6 @@ public class StartCleaningRobot {
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
             return null;
-        }
-    }
-
-    public static void createNewRCS (DeployedRobots deployedRobots) {
-//        List<CleaningRobot> deployedRobotsWithoutSelf = new ArrayList<>(deployedRobots);
-//        deployedRobotsWithoutSelf.remove(selfReference);
-        try {
-            RobotCommunicationServiceImpl service = new RobotCommunicationServiceImpl(
-                    selfReference,
-                    deployedRobots,
-                    timestamp
-            );
-            io.grpc.Server server = ServerBuilder
-                    .forPort(portNumber)
-                    .addService(service)
-                    .build();
-            service.setServer(server);
-            server.start();
-            System.out.println("[RCS] Opened listening service for other robots.");
-            server.awaitTermination();
-        } catch (IOException e) {
-            System.err.println("[RCS] IOException: " + e.getMessage());
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            System.err.println("[RCS] InterruptException: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -260,14 +237,14 @@ public class StartCleaningRobot {
         }
 
         try {
-            channel.awaitTermination(10, TimeUnit.SECONDS);
+            channel.awaitTermination(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 
     public static void broadcastMessage(String message) {
-        // Sends a message to all of the other robots
+        // Sends a message to all of the other robots (parallel)
         List<Thread> threads = new ArrayList<>();
 
         for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
@@ -307,5 +284,6 @@ public class StartCleaningRobot {
 //                break;
 //        }
     }
+
 }
 

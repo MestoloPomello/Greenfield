@@ -77,6 +77,15 @@ public class DeployedRobots {
         }
     }
 
+    public CleaningRobot getSelfReference(int id) {
+        for (CleaningRobot cr : deployedRobots) {
+            if (cr != null && cr.getId() == id) {
+                return cr;
+            }
+        }
+        return null;
+    }
+
     @Override
     public String toString() {
         StringBuilder str = new StringBuilder("[LOG] Deployed robots: ");
