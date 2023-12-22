@@ -1,12 +1,15 @@
 package cleaning_robot.threads;
 
+import cleaning_robot.StartCleaningRobot;
 import com.google.gson.Gson;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import shared.beans.AveragesPayload;
 import shared.constants.Constants;
-import shared.utils.LamportTimestamp;
 import simulators.Buffer;
+import static cleaning_robot.StartCleaningRobot.timestamp;
+import static cleaning_robot.StartCleaningRobot.district;
+import static cleaning_robot.StartCleaningRobot.id;
 
 import java.util.List;
 
@@ -20,16 +23,12 @@ public class SensorThread extends Thread {
     private final Buffer buffer;
     private MqttClient client;
     private final String clientId;
-    private final int district;
-    private final int robotID;
-    private final LamportTimestamp timestamp;
+    private boolean isUnderReparation;
 
-    public SensorThread(Buffer buffer, int district, int robotID, LamportTimestamp timestamp) {
+    public SensorThread(Buffer buffer) {
         this.buffer = buffer;
-        this.district = district;
-        this.robotID = robotID;
-        this.timestamp = timestamp;
         clientId = MqttClient.generateClientId();
+        isUnderReparation = false;
     }
 
     @Override
@@ -49,6 +48,14 @@ public class SensorThread extends Thread {
                 Thread.currentThread().interrupt();
             }
 
+            if (isUnderReparation) {
+                try {
+                    StartCleaningRobot.class.wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
             Gson gson = new Gson();
             List<Measurement> averages = buffer.readAllAndClean();
 
@@ -56,7 +63,7 @@ public class SensorThread extends Thread {
 
             AveragesPayload ap = new AveragesPayload(
                     averages,
-                    robotID,
+                    id,
                     timestamp.getTimestamp()
             );
 
@@ -118,5 +125,13 @@ public class SensorThread extends Thread {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void setInReparation() {
+        isUnderReparation = true;
+    }
+
+    public void setReparationEnded() {
+        isUnderReparation = false;
     }
 }

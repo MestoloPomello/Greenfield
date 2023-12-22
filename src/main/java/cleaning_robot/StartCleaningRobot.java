@@ -31,16 +31,24 @@ import static shared.utils.Utils.getRandomInt;
 public class StartCleaningRobot {
 
     public static String serverAddress = "http://" + Constants.SERVER_ADDR + ":" + Constants.SERVER_PORT;
-    private static int id, posX, posY, portNumber;
-    private static int district;
-    private static DeployedRobots deployedRobots;
-    private static LamportTimestamp timestamp;
-    private static CleaningRobot selfReference;
-    private static Client client;
+    public static int id, posX, posY, portNumber;
+    public static int district;
+    public static LamportTimestamp timestamp;
+    public static DeployedRobots deployedRobots;
+    public static CleaningRobot selfReference;
+    public static Client client;
+
+    // Threads
+    public static RcsThread rcsThread;
+    public static SensorThread sensorThread;
+    public static InputThread inputThread;
+    public static PingThread pingThread;
+    public static HealthCheckThread healthCheckThread;
 
     // Mechanic things
     private static final Object mechanicLock = new Object();
     private static final List<MechanicRequest> requestQueue = new ArrayList<>();
+
 
     public static void main(String[] args) {
 
@@ -87,7 +95,7 @@ public class StartCleaningRobot {
             }
 
             // Open listening connection for other robots
-            RcsThread rcsThread = new RcsThread(selfReference, deployedRobots, timestamp);
+            rcsThread = new RcsThread();
             rcsThread.start();
 
             // Presents itself to other robots
@@ -96,33 +104,23 @@ public class StartCleaningRobot {
             // Create objects
             Buffer buffer = new BufferImpl();
             PM10Simulator simulator = new PM10Simulator(buffer);
-            SensorThread sensorThread = new SensorThread(
-                    buffer,
-                    district,
-                    id,
-                    timestamp);
+            sensorThread = new SensorThread(buffer);
 
             // Start PM10 measurements
             simulator.start();
             sensorThread.start();
 
             // Awaits for inputs from the administrator
-            InputThread inputThread = new InputThread(
-                    selfReference,
-                    client,
-                    simulator,
-                    sensorThread);
+            inputThread = new InputThread(simulator);
             inputThread.start();
 
             // Start ping thread (checking if the next robot is alive)
-            PingThread pingThread = new PingThread(
-                    selfReference,
-                    deployedRobots
-            );
+            pingThread = new PingThread();
             pingThread.start();
 
             // Starts health check thread
-            // tbd
+            healthCheckThread = new HealthCheckThread();
+            healthCheckThread.start();
 
         } catch (DuplicatedIdException e) {
             e.printStackTrace();
@@ -367,33 +365,40 @@ public class StartCleaningRobot {
 
     // Mechanic functions
 
-    public static void requestMechanic(long reqTimestamp) {
-        try {
+    public static void waitForMechanicTurn(long reqTimestamp) {
             synchronized (mechanicLock) {
                 requestQueue.add(new MechanicRequest(id, reqTimestamp));
                 requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
 
                 // If there are one or more robots that came first, wait for a notify
                 while (!requestQueue.isEmpty() && requestQueue.get(0).getRobotId() == id) {
-                    mechanicLock.wait();
+                    try {
+                        mechanicLock.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
 
-                // Simulate a reparation
-                Thread.sleep(5000);
-
-                // Remove the request from the list and notify the other robots
+                // Remove the first request (this) from the list and notify the other robots
                 requestQueue.remove(0);
 
                 // Tell the other robots that this one has finished
-                // I don't use notifyAll because the robots are different processes
                 broadcastMessage(Constants.MECHANIC_RELEASE);
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+
     }
 
-    public static void notifyForMechanic() {
+    public static void notifyForMechanicRelease(int solvedRobotId) {
+        synchronized (requestQueue) {
+            MechanicRequest toBeRemoved = null;
+            for (MechanicRequest mr : requestQueue) {
+                if (mr != null && mr.getRobotId() == solvedRobotId) {
+                    toBeRemoved = mr;
+                    break;
+                }
+            }
+            requestQueue.remove(toBeRemoved);
+        }
         synchronized (mechanicLock) {
             mechanicLock.notifyAll();
         }

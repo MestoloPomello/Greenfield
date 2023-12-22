@@ -1,52 +1,64 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
-import cleaning_robot.beans.DeployedRobots;
-import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
 import shared.beans.CleaningRobot;
 
 import java.util.List;
 import java.util.Random;
+
+import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 
-import static cleaning_robot.StartCleaningRobot.syncBroadcastMessage;
+import static cleaning_robot.StartCleaningRobot.timestamp;
+import static cleaning_robot.StartCleaningRobot.selfReference;
 
 
 public class HealthCheckThread extends Thread {
     private volatile boolean running = true;
-    private CleaningRobot parentRobot;
-    private boolean needsFix, hasToken;
-    private DeployedRobots deployedRobots;
+    private boolean needsFix;
 
-    public HealthCheckThread(CleaningRobot parentRobot, DeployedRobots deployedRobots) {
+    public HealthCheckThread() {
         super();
         needsFix = false;
-        hasToken = false;
-        this.parentRobot = parentRobot;
-        this.deployedRobots = deployedRobots;
     }
 
     public void ricartAgrawala() {
+        System.out.println("[FIX] Starting reparation...");
+
+        // Pause the measurements thread
+        StartCleaningRobot.sensorThread.setInReparation();
+
         // Ask every robot for permission
-        List<RobotMessage> responses = StartCleaningRobot.syncBroadcastMessage(Constants.NEED_MECHANIC);
+        StartCleaningRobot.broadcastMessage(Constants.NEED_MECHANIC);
 
-        // Check if all responses are OK
-        if (responses.stream().allMatch(response -> response.getMessage().equals(Constants.MECHANIC_OK))) {
-            // Reparation
-            try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+        // Adds itself to its own requests queue
+        StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(selfReference.getId(), timestamp.getTimestamp()));
 
-            // After finishing with the mechanic, release the mechanic
-            StartCleaningRobot.syncBroadcastMessage(Constants.MECHANIC_RELEASE);
-        } else {
-            // Handle the case when access is not granted
-            // Add request to the queue and wait for mechanic availability
+        // Starts
+        StartCleaningRobot.waitForMechanicTurn(timestamp.getTimestamp());
+
+        // Simulate the reparation
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
+
+        // Release the mechanic and notify the other robots
+        StartCleaningRobot.syncBroadcastMessage(Constants.MECHANIC_RELEASE);
+        needsFix = false;
+
+        // Restart the measurements thread
+        StartCleaningRobot.class.notifyAll();
+        StartCleaningRobot.sensorThread.setReparationEnded();
+
+        System.out.println("[FIX] Reparation successfully completed.");
     }
 
+    public void forceReparation() {
+        needsFix = true;
+        ricartAgrawala();
+    }
 
     @Override
     public void run() {
@@ -60,41 +72,14 @@ public class HealthCheckThread extends Thread {
             }
 
             if (!needsFix) {
-                // If the robot is normally working
                 needsFix = random.nextDouble() < 0.1;
             }
 
             if (needsFix) {
-                /*hasToken = false;
-                passToken();*/
                 ricartAgrawala();
-            } else {
-                // Normal waiting time
             }
         }
     }
-
-    /*private void passToken() {
-        CleaningRobot nextRobot = null;
-        Iterator<CleaningRobot> it = deployedRobots.iterator();
-        while (it.hasNext()) {
-            CleaningRobot r = it.next();
-            if (r.getId() == myId) {
-                nextRobot = it.next();
-                break;
-            }
-        }
-        // If this is the last robot, start from the first (ring algorithm)
-        if (nextRobot == null) nextRobot = deployedRobots.get(0);
-
-        // Pass the token to the next robot
-        try (Socket s = new Socket(nextRobot.getAddress(), nextRobot.getPort())){
-            // DA SISTEMARE: controllare che il prossimo robot non sia crashato
-            String response =
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }*/
 
     public void stopThread() {
         running = false;

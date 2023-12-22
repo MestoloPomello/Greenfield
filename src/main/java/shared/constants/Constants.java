@@ -27,9 +27,11 @@ public final class Constants {
     // Robot messages
     public static final String HELLO = "hello";
     public static final String QUIT = "quit";
-    public static final String REQ_MECHANIC = "req_mechanic";
     public static final String PING = "ping";
     public static final String PONG = "pong";
+    public static final String FIX = "fix";
+
+    // Mechanic messages
     public static final String NEED_MECHANIC = "need_mechanic";
     public static final String MECHANIC_OK = "ok";
     public static final String MECHANIC_NOT_OK = "not_ok";

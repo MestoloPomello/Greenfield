@@ -1,21 +1,17 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
-import cleaning_robot.beans.DeployedRobots;
 import shared.beans.CleaningRobot;
-
 import shared.constants.Constants;
+import static cleaning_robot.StartCleaningRobot.selfReference;
+import static cleaning_robot.StartCleaningRobot.deployedRobots;
 
 
 public class PingThread extends Thread {
     private volatile boolean running = true;
-    private final CleaningRobot parentRobot;
-    private final DeployedRobots deployedRobots;
 
-    public PingThread(CleaningRobot parentRobot, DeployedRobots deployedRobots) {
+    public PingThread() {
         super();
-        this.parentRobot = parentRobot;
-        this.deployedRobots = deployedRobots;
     }
 
     @Override
@@ -42,7 +38,7 @@ public class PingThread extends Thread {
     }
 
     public CleaningRobot findNextRobot() {
-        int currentIndex = deployedRobots.getRobotIndex(parentRobot);
+        int currentIndex = deployedRobots.getRobotIndex(selfReference);
         if (currentIndex == deployedRobots.getNumber() - 1) {
             // If it's the last, return the first robot's port
             return deployedRobots.getRobotByIndex(0);

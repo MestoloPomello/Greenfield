@@ -1,36 +1,28 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.RobotCommunicationServiceImpl;
-import cleaning_robot.beans.DeployedRobots;
 import io.grpc.ServerBuilder;
-import shared.beans.CleaningRobot;
-import shared.utils.LamportTimestamp;
+import static cleaning_robot.StartCleaningRobot.selfReference;
+import static cleaning_robot.StartCleaningRobot.deployedRobots;
+import static cleaning_robot.StartCleaningRobot.timestamp;
 
 import java.io.IOException;
 
 public class RcsThread extends Thread  {
 
-    private final CleaningRobot parentRobot;
-    private final DeployedRobots deployedRobots;
-    private final LamportTimestamp timestamp;
-
-    public RcsThread(CleaningRobot parentRobot, DeployedRobots deployedRobots, LamportTimestamp timestamp) {
-        this.parentRobot = parentRobot;
-        this.deployedRobots = deployedRobots;
-        this.timestamp = timestamp;
-    }
+    public RcsThread() { }
 
     @Override
     public void run() {
         try {
             RobotCommunicationServiceImpl service = new RobotCommunicationServiceImpl(
-                    parentRobot,
+                    selfReference,
                     deployedRobots,
                     timestamp
             );
 
             io.grpc.Server server = ServerBuilder
-                    .forPort(parentRobot.getPort())
+                    .forPort(selfReference.getPort())
                     .addService(service)
                     .build();
             service.setServer(server);

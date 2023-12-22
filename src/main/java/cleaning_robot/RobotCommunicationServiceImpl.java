@@ -7,6 +7,7 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import shared.beans.CleaningRobot;
+import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 import shared.exceptions.UnrecognisedMessageException;
 import shared.utils.LamportTimestamp;
@@ -88,13 +89,16 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             System.out.println("[QUIT] Acknowledged that robot with ID "
                                     + robotMessage.getSenderId() + " has quit Greenfield.");
                             break;
-                        case Constants.REQ_MECHANIC:
+                        case Constants.NEED_MECHANIC:
+                            StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(
+                                    robotMessage.getSenderId(),
+                                    robotMessage.getTimestamp()
+                            ));
                             break;
                         case Constants.MECHANIC_RELEASE:
-                            StartCleaningRobot.
+                            StartCleaningRobot.notifyForMechanicRelease(robotMessage.getSenderId());
                             break;
                         case Constants.PING:
-
                             responseObserver.onNext(RobotMessage.newBuilder()
                                     .setSenderId(parentRobot.getId())
                                     .setSenderPort(parentRobot.getPort())

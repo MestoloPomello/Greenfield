@@ -1,27 +1,18 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
-import com.sun.jersey.api.client.Client;
-import shared.beans.CleaningRobot;
-import shared.beans.RobotCreationResponse;
 import shared.constants.Constants;
 import simulators.PM10Simulator;
+import static cleaning_robot.StartCleaningRobot.selfReference;
 
-import java.io.IOException;
 import java.util.Scanner;
 
 public class InputThread extends Thread {
     private volatile boolean running = true;
-    private final CleaningRobot parentRobot;
-    private final Client serverClient;
     private final PM10Simulator simulator;
-    private final SensorThread sensorThread;
 
-    public InputThread(CleaningRobot parentRobot, Client serverClient, PM10Simulator simulator, SensorThread sensorThread) {
-        this.parentRobot = parentRobot;
-        this.serverClient = serverClient;
+    public InputThread(PM10Simulator simulator) {
         this.simulator = simulator;
-        this.sensorThread = sensorThread;
     }
 
     @Override
@@ -32,20 +23,20 @@ public class InputThread extends Thread {
                 String command = scanner.nextLine();
 
                 switch(command) {
-                    case "fix":
-
+                    case Constants.FIX:
+                        StartCleaningRobot.healthCheckThread.forceReparation();
                         break;
                     case Constants.QUIT:
                         // finire operazioni meccanico
 
                         simulator.stopMeGently();
-                        sensorThread.stopThread();
+                        StartCleaningRobot.sensorThread.stopThread();
 
                         // Notify other robots
                         StartCleaningRobot.broadcastMessage(Constants.QUIT);
 
                         // Notify the server
-                        StartCleaningRobot.deleteRequest(StartCleaningRobot.serverAddress + "/robot/" + parentRobot.getId());
+                        StartCleaningRobot.deleteRequest(StartCleaningRobot.serverAddress + "/robot/" + selfReference.getId());
 
                         System.out.println("[QUIT] Server acknowledged.");
 
