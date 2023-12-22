@@ -2,15 +2,14 @@ package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
 import cleaning_robot.beans.DeployedRobots;
+import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
 import shared.beans.CleaningRobot;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.io.IOException;
-import java.net.Socket;
-//import cleaning_robot.proto.ResearcherOuterClass.Researcher;
 import shared.constants.Constants;
+
+import static cleaning_robot.StartCleaningRobot.syncBroadcastMessage;
 
 
 public class HealthCheckThread extends Thread {
@@ -28,27 +27,30 @@ public class HealthCheckThread extends Thread {
     }
 
     public void ricartAgrawala() {
-        // Ask every robot in order to access the mechanic
-//        RobotMessage out = RobotMessage.newBuilder()
-//                .setSenderId(myId)
-//                .setTimestamp(System.currentTimeMillis())
-//                .build();
-//
-//        for (CleaningRobot otherRobot : deployedRobots) {
-//            try (Socket s = new Socket(otherRobot.getAddress(), otherRobot.getPort())) {
-//                out.writeTo(s.getOutputStream());
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            } finally {
-//                s.close();
-//            }
-//        }
+        // Ask every robot for permission
+        List<RobotMessage> responses = StartCleaningRobot.syncBroadcastMessage(Constants.NEED_MECHANIC);
 
+        // Check if all responses are OK
+        if (responses.stream().allMatch(response -> response.getMessage().equals(Constants.MECHANIC_OK))) {
+            // Reparation
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // After finishing with the mechanic, release the mechanic
+            StartCleaningRobot.syncBroadcastMessage(Constants.MECHANIC_RELEASE);
+        } else {
+            // Handle the case when access is not granted
+            // Add request to the queue and wait for mechanic availability
+        }
     }
+
 
     @Override
     public void run() {
-//        Random random = new Random();
+        Random random = new Random();
 
         while (running) {
             try {
@@ -57,26 +59,18 @@ public class HealthCheckThread extends Thread {
                 Thread.currentThread().interrupt();
             }
 
-            // Crash-check the next robot, but only if there is at least another one
-            // DA SISTEMARE - in caso di crash sembra che chiami il server più volte
-            if (deployedRobots.getNumber() > 1) {
-                CleaningRobot nextRobot = findNextRobot();
-                System.out.println("[CHECK] Checking if robot " + nextRobot.getId() + " is alive...");
-                StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING);
+            if (!needsFix) {
+                // If the robot is normally working
+                needsFix = random.nextDouble() < 0.1;
             }
 
-//            if (!needsFix) {
-//                // If the robot is normally working
-//                needsFix = random.nextDouble() < 0.1;
-//            }
-
-//            if (needsFix) {
-//                /*hasToken = false;
-//                passToken();*/
-//                ricartAgrawala();
-//            } else {
-//                // Normal waiting time
-//            }
+            if (needsFix) {
+                /*hasToken = false;
+                passToken();*/
+                ricartAgrawala();
+            } else {
+                // Normal waiting time
+            }
         }
     }
 
@@ -105,16 +99,5 @@ public class HealthCheckThread extends Thread {
     public void stopThread() {
         running = false;
         interrupt();
-    }
-
-    public CleaningRobot findNextRobot() {
-        int currentIndex = deployedRobots.getRobotIndex(parentRobot);
-        if (currentIndex == deployedRobots.getNumber() - 1) {
-            // If it's the last, return the first robot's port
-            return deployedRobots.getRobotByIndex(0);
-        } else {
-            // Else return the next robot's port
-            return deployedRobots.getRobotByIndex(currentIndex + 1);
-        }
     }
 }

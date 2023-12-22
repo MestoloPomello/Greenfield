@@ -17,14 +17,6 @@ public class DeployedRobots {
         this.deployedRobots = deployedRobots;
     }
 
-//    public static DeployedRobots getInstance(int robotId){
-//        synchronized(lock) {
-//            if (instances.get(robotId) == null)
-//                instances.put(robotId, new DeployedRobots());
-//            return instances.get(robotId);
-//        }
-//    }
-
     public List<CleaningRobot> getDeployedRobots() {
         synchronized (lock) {
             return deployedRobots;
@@ -78,9 +70,11 @@ public class DeployedRobots {
     }
 
     public CleaningRobot getSelfReference(int id) {
-        for (CleaningRobot cr : deployedRobots) {
-            if (cr != null && cr.getId() == id) {
-                return cr;
+        synchronized (lock) {
+            for (CleaningRobot cr : deployedRobots) {
+                if (cr != null && cr.getId() == id) {
+                    return cr;
+                }
             }
         }
         return null;

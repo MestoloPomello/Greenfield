@@ -3,11 +3,9 @@ package cleaning_robot;
 import cleaning_robot.beans.DeployedRobots;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServiceStub;
+import cleaning_robot.proto.RobotCommunicationService_SyncGrpc;
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
-import cleaning_robot.threads.HealthCheckThread;
-import cleaning_robot.threads.InputThread;
-import cleaning_robot.threads.RcsThread;
-import cleaning_robot.threads.SensorThread;
+import cleaning_robot.threads.*;
 import com.google.gson.Gson;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientHandlerException;
@@ -15,23 +13,16 @@ import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.ServerBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import shared.beans.BufferImpl;
-import shared.beans.CleaningRobot;
-import shared.beans.InputRobot;
-import shared.beans.RobotCreationResponse;
+import shared.beans.*;
 import shared.constants.Constants;
 import shared.exceptions.DuplicatedIdException;
 import shared.utils.LamportTimestamp;
 import simulators.Buffer;
 import simulators.PM10Simulator;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static shared.utils.Utils.getRandomInt;
@@ -46,6 +37,10 @@ public class StartCleaningRobot {
     private static LamportTimestamp timestamp;
     private static CleaningRobot selfReference;
     private static Client client;
+
+    // Mechanic things
+    private static final Object mechanicLock = new Object();
+    private static final List<MechanicRequest> requestQueue = new ArrayList<>();
 
     public static void main(String[] args) {
 
@@ -119,12 +114,15 @@ public class StartCleaningRobot {
                     sensorThread);
             inputThread.start();
 
-            // Start health check thread
-            HealthCheckThread healthCheck = new HealthCheckThread(
+            // Start ping thread (checking if the next robot is alive)
+            PingThread pingThread = new PingThread(
                     selfReference,
                     deployedRobots
             );
-            healthCheck.start();
+            pingThread.start();
+
+            // Starts health check thread
+            // tbd
 
         } catch (DuplicatedIdException e) {
             e.printStackTrace();
@@ -243,6 +241,87 @@ public class StartCleaningRobot {
         }
     }
 
+    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {
+        final ManagedChannel channel = ManagedChannelBuilder
+                .forTarget(Constants.SERVER_ADDR + ":" + otherRobot.getPort())
+                .usePlaintext()
+                .build();
+
+        RobotCommunicationService_SyncGrpc.RobotCommunicationService_SyncBlockingStub stub
+                = RobotCommunicationService_SyncGrpc.newBlockingStub(channel);
+
+        try {
+            int newTimestamp = timestamp.increaseTimestamp();
+            RobotMessage request = RobotMessage.newBuilder()
+                    .setSenderId(id)
+                    .setSenderPort(portNumber)
+                    .setTimestamp(newTimestamp)
+                    .setStartingPosX(posX)
+                    .setStartingPosY(posY)
+                    .setMessage(msg)
+                    .build();
+
+            return stub.rcsSync(request);
+        } catch (StatusRuntimeException e) {
+            e.printStackTrace();
+
+            System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
+
+            // Delete the robot from the list
+            deployedRobots.deleteRobot(otherRobot.getId());
+
+            // Notify the server that the robot crashed
+            notifyRobotCrash(otherRobot.getId());
+
+            // Close the channel with the crashed server
+            channel.shutdown();
+
+            return null;
+        } finally {
+            channel.shutdown();
+            try {
+                channel.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public static List<RobotMessage> syncBroadcastMessage(String message) {
+        List<Thread> threads = new ArrayList<>();
+        List<RobotMessage> responses = new ArrayList<>();
+
+        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
+            if (otherRobot != null) {
+                if (otherRobot.getId() != id) {
+                    Thread thread = new Thread(() -> {
+                        RobotMessage response = sendMessageToOtherRobot_Sync(otherRobot, message);
+                        if (response != null) {
+                            synchronized (responses) {
+                                responses.add(response);
+                            }
+                        }
+                    });
+                    thread.start();
+                    threads.add(thread);
+                } else {
+                    selfReference = otherRobot;
+                }
+            }
+        }
+
+        // Wait for all the threads to end
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        return responses;
+    }
+
     public static void broadcastMessage(String message) {
         // Sends a message to all of the other robots (parallel)
         List<Thread> threads = new ArrayList<>();
@@ -285,5 +364,45 @@ public class StartCleaningRobot {
 //        }
     }
 
+
+    // Mechanic functions
+
+    public static void requestMechanic(long reqTimestamp) {
+        try {
+            synchronized (mechanicLock) {
+                requestQueue.add(new MechanicRequest(id, reqTimestamp));
+                requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
+
+                // If there are one or more robots that came first, wait for a notify
+                while (!requestQueue.isEmpty() && requestQueue.get(0).getRobotId() == id) {
+                    mechanicLock.wait();
+                }
+
+                // Simulate a reparation
+                Thread.sleep(5000);
+
+                // Remove the request from the list and notify the other robots
+                requestQueue.remove(0);
+
+                // Tell the other robots that this one has finished
+                // I don't use notifyAll because the robots are different processes
+                broadcastMessage(Constants.MECHANIC_RELEASE);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void notifyForMechanic() {
+        synchronized (mechanicLock) {
+            mechanicLock.notifyAll();
+        }
+    }
+
+    public static void addRobotToMechanicRequests(MechanicRequest newRequest) {
+        synchronized (requestQueue) {
+            requestQueue.add(newRequest);
+        }
+    }
 }
 

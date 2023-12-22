@@ -90,6 +90,9 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             break;
                         case Constants.REQ_MECHANIC:
                             break;
+                        case Constants.MECHANIC_RELEASE:
+                            StartCleaningRobot.
+                            break;
                         case Constants.PING:
 
                             responseObserver.onNext(RobotMessage.newBuilder()
@@ -101,8 +104,8 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     .setMessage(Constants.PONG)
                                     .build());
 
-                            System.out.println("[PING] Received and replied ping from robot "
-                                    + robotMessage.getSenderId());
+//                            System.out.println("[PING] Received and replied ping from robot "
+//                                    + robotMessage.getSenderId());
                             break;
                         default:
                             // Crashed robot message - crash_{id}

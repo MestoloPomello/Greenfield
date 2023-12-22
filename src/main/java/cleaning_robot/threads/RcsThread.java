@@ -29,8 +29,6 @@ public class RcsThread extends Thread  {
                     timestamp
             );
 
-            System.out.println("ParentRobot: " + parentRobot.toString());
-
             io.grpc.Server server = ServerBuilder
                     .forPort(parentRobot.getPort())
                     .addService(service)
