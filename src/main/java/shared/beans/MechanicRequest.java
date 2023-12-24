@@ -24,4 +24,9 @@ public class MechanicRequest {
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
     }
+
+    @Override
+    public String toString() {
+        return "Robot ID: " + robotId + " | Timestamp: " + timestamp;
+    }
 }

@@ -2,9 +2,7 @@ package cleaning_robot.beans;
 
 import shared.beans.CleaningRobot;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 
 public class DeployedRobots {
@@ -47,25 +45,15 @@ public class DeployedRobots {
         }
     }
 
-    public boolean insertRobot(CleaningRobot newRobot){
-        try {
-            synchronized (lock) {
-                deployedRobots.add(newRobot);
-            }
-            return true;
-        } catch (Exception e) {
-            return false;
+    public void insertRobot(CleaningRobot newRobot) {
+        synchronized (lock) {
+            deployedRobots.add(newRobot);
         }
     }
 
-    public boolean deleteRobot(int id) {
-        try {
-            synchronized (lock) {
-                deployedRobots.removeIf(cr -> cr != null && cr.getId() == id);
-            }
-            return true;
-        } catch (Exception e) {
-            return false;
+    public void deleteRobot(int id) {
+        synchronized (lock) {
+            deployedRobots.removeIf(cr -> cr != null && cr.getId() == id);
         }
     }
 

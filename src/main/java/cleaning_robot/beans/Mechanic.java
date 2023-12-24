@@ -1,23 +1,25 @@
 package cleaning_robot.beans;
 
 import cleaning_robot.StartCleaningRobot;
+import shared.beans.CleaningRobot;
 import shared.beans.MechanicRequest;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Mechanic {
 
     private final static Object lock = new Object();
     private static Mechanic instance;
     private static final List<MechanicRequest> requestQueue = new ArrayList<>();
-    private static boolean needsFix;
+    private boolean needsFix;
 
-    private int neededOKs, receivedOKs;
+    private int /*neededOKs,*/ receivedOKs;
 
     private Mechanic() {
-        neededOKs = 0;
+        //neededOKs = 0;
         receivedOKs = 0;
         needsFix = false;
     }
@@ -42,9 +44,9 @@ public class Mechanic {
 
     public boolean isMyTurn() {
         synchronized (lock) {
-            System.out.println("[MECHANIC] NeededOKs: " + (neededOKs - 1));
+            System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
             System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
-            return receivedOKs == neededOKs;
+            return receivedOKs == StartCleaningRobot.deployedRobots.getNumber();
         }
     }
 
@@ -65,19 +67,19 @@ public class Mechanic {
 
     public void setNeedsFix(boolean needsFix) {
         synchronized (lock) {
-            Mechanic.needsFix = needsFix;
-            neededOKs = 0;
+            this.needsFix = needsFix;
+            //neededOKs = 0;
             receivedOKs = 0;
         }
     }
 
-    public void setNeededOKs(int neededOKs) {
-        this.neededOKs = neededOKs;
-    }
+//    public void setNeededOKs(int neededOKs) {
+//        this.neededOKs = neededOKs;
+//    }
 
     public void notifyForMechanicRelease(int solvedRobotId) {
+        MechanicRequest toBeRemoved = null;
         synchronized (requestQueue) {
-            MechanicRequest toBeRemoved = null;
             for (MechanicRequest mr : requestQueue) {
                 if (mr != null && mr.getRobotId() == solvedRobotId) {
                     toBeRemoved = mr;
@@ -86,11 +88,33 @@ public class Mechanic {
             }
             requestQueue.remove(toBeRemoved);
         }
-        synchronized (lock) {
-            lock.notifyAll();
+        synchronized (StartCleaningRobot.healthCheckThread.lock) {
+            StartCleaningRobot.healthCheckThread.lock.notifyAll();
         }
     }
 
+    public List<CleaningRobot> getQueuedRobotsList() {
+        List<CleaningRobot> deployedRobots = StartCleaningRobot.deployedRobots.getDeployedRobots();
+
+        List<Integer> robotIds = requestQueue.stream()
+                .map(MechanicRequest::getRobotId)
+                .collect(Collectors.toList());
+
+        return deployedRobots.stream()
+                .filter(robot -> robotIds.contains(robot.getId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder requestsString = new StringBuilder();
+        for (MechanicRequest mr : requestQueue) {
+            requestsString.append("\n\t\t").append(mr.toString());
+        }
+        return "> Mechanic data:" +
+                "\n\tneedsFix: " + needsFix +
+                "\n\trequests queue:" + requestsString;
+    }
 
 //    public static void waitForMechanicTurn(long reqTimestamp) {
 //        synchronized (lock) {

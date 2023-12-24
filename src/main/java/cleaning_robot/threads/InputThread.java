@@ -46,7 +46,7 @@ public class InputThread extends Thread {
                         StartCleaningRobot.sensorThread.stopThread();
 
                         // Notify other robots
-                        StartCleaningRobot.broadcastMessage(Constants.QUIT, false);
+                        StartCleaningRobot.broadcastMessage_All(Constants.QUIT, false);
 
                         // Notify the server
                         StartCleaningRobot.deleteRequest(StartCleaningRobot.serverAddress + "/robot/" + selfReference.getId());

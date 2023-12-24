@@ -94,7 +94,7 @@ public class StartCleaningRobot {
             rcsThread.start();
 
             // Presents itself to other robots
-            broadcastMessage(Constants.HELLO, false);
+            broadcastMessage_All(Constants.HELLO, false);
 
             // Create objects
             Buffer buffer = new BufferImpl();
@@ -140,7 +140,7 @@ public class StartCleaningRobot {
         WebResource webResource = client.resource(serverAddress + "/robot/crash/" + robotId);
         try {
             webResource.type("application/json").delete(String.class);
-            broadcastMessage("crash_" + robotId, false);
+            broadcastMessage_All("crash_" + robotId, false);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
         }
@@ -174,21 +174,11 @@ public class StartCleaningRobot {
 
         StreamObserver<RobotMessage> robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
             public void onNext(RobotMessage robotMessage) {
-                String response = robotMessage.getMessage();
-//                System.out.println("[IN] From ("
-//                        + robotMessage.getSenderId()
-//                        + ": "
-//                        + robotMessage.getSenderPort()
-//                        + "): "
-//                        + response);
-
                 rcsThread.service.handleRobotMessage(robotMessage, this, true);
                 channel.shutdown();
             }
 
             public void onError(Throwable throwable) {
-                //throwable.printStackTrace();
-
                 System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
 
                 // Delete the robot from the list
@@ -233,12 +223,16 @@ public class StartCleaningRobot {
         }
     }
 
-    public static void broadcastMessage(String message, boolean selfBroadcast) {
+    public static void broadcastMessage_All(String message, boolean selfBroadcast) {
+        broadcastMessage(message, selfBroadcast, deployedRobots.getDeployedRobots());
+    }
+
+    public static void broadcastMessage(String message, boolean selfBroadcast, List<CleaningRobot> receivers) {
         // Sends a message to all of the other robots (parallel)
         // If selfBroadcast is true, send the msg even to itself
         List<Thread> threads = new ArrayList<>();
 
-        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
+        for (CleaningRobot otherRobot : receivers) {
             if (otherRobot != null) {
                 if (otherRobot.getId() != id || selfBroadcast) {
                     Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));

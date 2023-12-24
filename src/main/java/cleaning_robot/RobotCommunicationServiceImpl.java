@@ -12,7 +12,6 @@ import shared.constants.Constants;
 import shared.exceptions.UnrecognisedMessageException;
 import shared.utils.LamportTimestamp;
 
-import java.awt.*;
 
 public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImplBase {
 
@@ -56,6 +55,13 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
             StreamObserver<RobotMessage> responseObserver,
             boolean isResponse
     ) {
+//        System.out.println("[IN] From ("
+//                + robotMessage.getSenderId()
+//                + ": "
+//                + robotMessage.getSenderPort()
+//                + "): "
+//                + robotMessage.getMessage());
+
         final String msg = robotMessage.getMessage();
         System.out.println("[IN] From ("
                 + robotMessage.getSenderId()
@@ -70,34 +76,32 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
         try {
             switch (msg) {
                 case Constants.HELLO:
-                    // Saving robot in local list
-                    deployedRobots.insertRobot(new CleaningRobot(
-                            robotMessage.getSenderId(),
-                            robotMessage.getSenderPort(),
-                            Constants.SERVER_ADDR,
-                            robotMessage.getStartingPosX(),
-                            robotMessage.getStartingPosY()
-                    ));
-
-                    System.out.println("[HELLO] Acknowledged robot with port " +
-                            robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
-
                     if (!isResponse) {
+                        // Saving robot in local list
+                        deployedRobots.insertRobot(new CleaningRobot(
+                                robotMessage.getSenderId(),
+                                robotMessage.getSenderPort(),
+                                Constants.SERVER_ADDR,
+                                robotMessage.getStartingPosX(),
+                                robotMessage.getStartingPosY()
+                        ));
+
+                        System.out.println("[HELLO] Acknowledged robot with port " +
+                                robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
+
                         // Ack response
                         responseObserver.onNext(buildMessage(Constants.HELLO, newTimestamp));
                     }
                     break;
                 case Constants.QUIT:
                     deployedRobots.deleteRobot(robotMessage.getSenderId());
-                    //server.shutdown();
-
                     System.out.println("[QUIT] Acknowledged that robot with ID "
                             + robotMessage.getSenderId() + " has quit Greenfield.");
                     break;
                 case Constants.NEED_MECHANIC:
                     if (
-                            Mechanic.getInstance().isNeedsFix() &&
-                                    robotMessage.getSenderId() != parentRobot.getId()
+                            Mechanic.getInstance().isNeedsFix() /*&&
+                                    robotMessage.getSenderId() != parentRobot.getId()*/
                     ) {
                         // If this robot wants the mechanic too, compares the timestamp and chooses
                         int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
@@ -137,7 +141,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                     }
             }
         } catch (UnrecognisedMessageException e) {
-            e.printStackTrace();
+            System.err.println("[RCS] Unrecognised message: " + e);
         }
     }
 

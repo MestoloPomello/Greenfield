@@ -5,8 +5,6 @@ import io.grpc.ServerBuilder;
 import static cleaning_robot.StartCleaningRobot.selfReference;
 import static cleaning_robot.StartCleaningRobot.deployedRobots;
 import static cleaning_robot.StartCleaningRobot.timestamp;
-
-import java.awt.*;
 import java.io.IOException;
 
 public class RcsThread extends Thread  {

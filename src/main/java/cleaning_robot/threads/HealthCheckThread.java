@@ -2,7 +2,12 @@ package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
 import cleaning_robot.beans.Mechanic;
+
+import java.util.ArrayList;
 import java.util.Random;
+
+import shared.beans.CleaningRobot;
+import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 
 
@@ -25,8 +30,8 @@ public class HealthCheckThread extends Thread {
         StartCleaningRobot.sensorThread.setInReparation();
 
         // Ask every robot for permission (including itself)
-        Mechanic.getInstance().setNeededOKs(StartCleaningRobot.deployedRobots.getNumber());
-        StartCleaningRobot.broadcastMessage(Constants.NEED_MECHANIC, true);
+        //Mechanic.getInstance().setNeededOKs(StartCleaningRobot.deployedRobots.getNumber());
+        StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
 
         // If it's not my turn, wait
         while (!Mechanic.getInstance().isMyTurn()) {
@@ -51,16 +56,20 @@ public class HealthCheckThread extends Thread {
 
         // Simulate the reparation
         try {
-            Thread.sleep(5000);
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
         // Release the mechanic and notify the other robots
-        StartCleaningRobot.broadcastMessage(Constants.MECHANIC_RELEASE, false);
+        StartCleaningRobot.broadcastMessage(
+                Constants.MECHANIC_OK,
+                false,
+                Mechanic.getInstance().getQueuedRobotsList()
+        );
         Mechanic.getInstance().setNeedsFix(false);
 
-        // Restart the measurements thread
+        // Resume the measurements thread
         synchronized (StartCleaningRobot.sensorThread.lock) {
             StartCleaningRobot.sensorThread.lock.notifyAll();
         }
