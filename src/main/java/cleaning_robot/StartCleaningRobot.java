@@ -3,7 +3,6 @@ package cleaning_robot;
 import cleaning_robot.beans.DeployedRobots;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServiceStub;
-import cleaning_robot.proto.RobotCommunicationService_SyncGrpc;
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
 import cleaning_robot.threads.*;
 import com.google.gson.Gson;
@@ -44,10 +43,6 @@ public class StartCleaningRobot {
     public static InputThread inputThread;
     public static PingThread pingThread;
     public static HealthCheckThread healthCheckThread;
-
-    // Mechanic things
-    private static final Object mechanicLock = new Object();
-    private static final List<MechanicRequest> requestQueue = new ArrayList<>();
 
 
     public static void main(String[] args) {
@@ -99,7 +94,7 @@ public class StartCleaningRobot {
             rcsThread.start();
 
             // Presents itself to other robots
-            broadcastMessage(Constants.HELLO);
+            broadcastMessage(Constants.HELLO, false);
 
             // Create objects
             Buffer buffer = new BufferImpl();
@@ -145,7 +140,7 @@ public class StartCleaningRobot {
         WebResource webResource = client.resource(serverAddress + "/robot/crash/" + robotId);
         try {
             webResource.type("application/json").delete(String.class);
-            broadcastMessage("crash_" + robotId);
+            broadcastMessage("crash_" + robotId, false);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
         }
@@ -161,14 +156,12 @@ public class StartCleaningRobot {
         }
     }
 
-    public static String deleteRequest(String url){
+    public static void deleteRequest(String url){
         WebResource webResource = client.resource(url);
         try {
-
-            return webResource.type("application/json").delete(String.class);
+            webResource.type("application/json").delete(String.class);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
-            return null;
         }
     }
 
@@ -190,6 +183,7 @@ public class StartCleaningRobot {
                         + response);
 
                 handleRobotResponse(robotMessage);
+                channel.shutdown();
             }
 
             public void onError(Throwable throwable) {
@@ -239,94 +233,95 @@ public class StartCleaningRobot {
         }
     }
 
-    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {
-        final ManagedChannel channel = ManagedChannelBuilder
-                .forTarget(Constants.SERVER_ADDR + ":" + otherRobot.getPort())
-                .usePlaintext()
-                .build();
+//    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {
+//        final ManagedChannel channel = ManagedChannelBuilder
+//                .forTarget(Constants.SERVER_ADDR + ":" + otherRobot.getPort())
+//                .usePlaintext()
+//                .build();
+//
+//        RobotCommunicationService_SyncGrpc.RobotCommunicationService_SyncBlockingStub stub
+//                = RobotCommunicationService_SyncGrpc.newBlockingStub(channel);
+//
+//        try {
+//            int newTimestamp = timestamp.increaseTimestamp();
+//            RobotMessage request = RobotMessage.newBuilder()
+//                    .setSenderId(id)
+//                    .setSenderPort(portNumber)
+//                    .setTimestamp(newTimestamp)
+//                    .setStartingPosX(posX)
+//                    .setStartingPosY(posY)
+//                    .setMessage(msg)
+//                    .build();
+//
+//            return stub.rcsSync(request);
+//        } catch (StatusRuntimeException e) {
+//            e.printStackTrace();
+//
+//            System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
+//
+//            // Delete the robot from the list
+//            deployedRobots.deleteRobot(otherRobot.getId());
+//
+//            // Notify the server that the robot crashed
+//            notifyRobotCrash(otherRobot.getId());
+//
+//            // Close the channel with the crashed server
+//            channel.shutdown();
+//
+//            return null;
+//        } finally {
+//            channel.shutdown();
+//            try {
+//                channel.awaitTermination(1, TimeUnit.SECONDS);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
 
-        RobotCommunicationService_SyncGrpc.RobotCommunicationService_SyncBlockingStub stub
-                = RobotCommunicationService_SyncGrpc.newBlockingStub(channel);
+//    public static List<RobotMessage> syncBroadcastMessage(String message) {
+//        List<Thread> threads = new ArrayList<>();
+//        List<RobotMessage> responses = new ArrayList<>();
+//
+//        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
+//            if (otherRobot != null) {
+//                if (otherRobot.getId() != id) {
+//                    Thread thread = new Thread(() -> {
+//                        RobotMessage response = sendMessageToOtherRobot_Sync(otherRobot, message);
+//                        if (response != null) {
+//                            synchronized (responses) {
+//                                responses.add(response);
+//                            }
+//                        }
+//                    });
+//                    thread.start();
+//                    threads.add(thread);
+//                } else {
+//                    selfReference = otherRobot;
+//                }
+//            }
+//        }
+//
+//        // Wait for all the threads to end
+//        for (Thread thread : threads) {
+//            try {
+//                thread.join();
+//            } catch (InterruptedException e) {
+//                Thread.currentThread().interrupt();
+//            }
+//        }
+//
+//        return responses;
+//    }
 
-        try {
-            int newTimestamp = timestamp.increaseTimestamp();
-            RobotMessage request = RobotMessage.newBuilder()
-                    .setSenderId(id)
-                    .setSenderPort(portNumber)
-                    .setTimestamp(newTimestamp)
-                    .setStartingPosX(posX)
-                    .setStartingPosY(posY)
-                    .setMessage(msg)
-                    .build();
-
-            return stub.rcsSync(request);
-        } catch (StatusRuntimeException e) {
-            e.printStackTrace();
-
-            System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
-
-            // Delete the robot from the list
-            deployedRobots.deleteRobot(otherRobot.getId());
-
-            // Notify the server that the robot crashed
-            notifyRobotCrash(otherRobot.getId());
-
-            // Close the channel with the crashed server
-            channel.shutdown();
-
-            return null;
-        } finally {
-            channel.shutdown();
-            try {
-                channel.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public static List<RobotMessage> syncBroadcastMessage(String message) {
-        List<Thread> threads = new ArrayList<>();
-        List<RobotMessage> responses = new ArrayList<>();
-
-        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
-            if (otherRobot != null) {
-                if (otherRobot.getId() != id) {
-                    Thread thread = new Thread(() -> {
-                        RobotMessage response = sendMessageToOtherRobot_Sync(otherRobot, message);
-                        if (response != null) {
-                            synchronized (responses) {
-                                responses.add(response);
-                            }
-                        }
-                    });
-                    thread.start();
-                    threads.add(thread);
-                } else {
-                    selfReference = otherRobot;
-                }
-            }
-        }
-
-        // Wait for all the threads to end
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        return responses;
-    }
-
-    public static void broadcastMessage(String message) {
+    public static void broadcastMessage(String message, boolean selfBroadcast) {
         // Sends a message to all of the other robots (parallel)
+        // If selfBroadcast is true, send the msg even to itself
         List<Thread> threads = new ArrayList<>();
 
         for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
             if (otherRobot != null) {
-                if (otherRobot.getId() != id) {
+                if (otherRobot.getId() != id || selfBroadcast) {
                     Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));
                     thread.start();
                     threads.add(thread);
@@ -362,52 +357,5 @@ public class StartCleaningRobot {
 //        }
     }
 
-
-    // Mechanic functions
-
-    public static void waitForMechanicTurn(long reqTimestamp) {
-            synchronized (mechanicLock) {
-                requestQueue.add(new MechanicRequest(id, reqTimestamp));
-                requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
-
-                // If there are one or more robots that came first, wait for a notify
-                while (!requestQueue.isEmpty() && requestQueue.get(0).getRobotId() == id) {
-                    try {
-                        mechanicLock.wait();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-
-                // Remove the first request (this) from the list and notify the other robots
-                requestQueue.remove(0);
-
-                // Tell the other robots that this one has finished
-                broadcastMessage(Constants.MECHANIC_RELEASE);
-            }
-
-    }
-
-    public static void notifyForMechanicRelease(int solvedRobotId) {
-        synchronized (requestQueue) {
-            MechanicRequest toBeRemoved = null;
-            for (MechanicRequest mr : requestQueue) {
-                if (mr != null && mr.getRobotId() == solvedRobotId) {
-                    toBeRemoved = mr;
-                    break;
-                }
-            }
-            requestQueue.remove(toBeRemoved);
-        }
-        synchronized (mechanicLock) {
-            mechanicLock.notifyAll();
-        }
-    }
-
-    public static void addRobotToMechanicRequests(MechanicRequest newRequest) {
-        synchronized (requestQueue) {
-            requestQueue.add(newRequest);
-        }
-    }
 }
 

@@ -1,19 +1,16 @@
 package cleaning_robot;
 
 import cleaning_robot.beans.DeployedRobots;
+import cleaning_robot.beans.Mechanic;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.*;
 import cleaning_robot.proto.RobotMessageOuterClass.*;
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import shared.beans.CleaningRobot;
 import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 import shared.exceptions.UnrecognisedMessageException;
 import shared.utils.LamportTimestamp;
-
-import java.io.IOException;
-import java.util.List;
 
 public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImplBase {
 
@@ -22,7 +19,9 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
     io.grpc.Server server;
     LamportTimestamp timestamp;
 
-    public RobotCommunicationServiceImpl() { super(); }
+    public RobotCommunicationServiceImpl() {
+        super();
+    }
 
     public RobotCommunicationServiceImpl(CleaningRobot parentRobot, DeployedRobots deployedRobots, LamportTimestamp timestamp) {
         super();
@@ -37,6 +36,17 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 
     public void setServer(Server server) {
         this.server = server;
+    }
+
+    public RobotMessage buildMessage(String msg, int newTimestamp) {
+        return RobotMessage.newBuilder()
+                .setSenderId(parentRobot.getId())
+                .setSenderPort(parentRobot.getPort())
+                .setTimestamp(newTimestamp)
+                .setStartingPosX(parentRobot.getPosX())
+                .setStartingPosY(parentRobot.getPosY())
+                .setMessage(msg)
+                .build();
     }
 
     @Override
@@ -73,14 +83,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
 
                             // Ack response
-                            responseObserver.onNext(RobotMessage.newBuilder()
-                                    .setSenderId(parentRobot.getId())
-                                    .setSenderPort(parentRobot.getPort())
-                                    .setTimestamp(newTimestamp)
-                                    .setStartingPosX(parentRobot.getPosX())
-                                    .setStartingPosY(parentRobot.getPosY())
-                                    .setMessage(Constants.HELLO)
-                                    .build());
+                            responseObserver.onNext(buildMessage(Constants.HELLO, newTimestamp));
                             break;
                         case Constants.QUIT:
                             deployedRobots.deleteRobot(robotMessage.getSenderId());
@@ -90,26 +93,30 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     + robotMessage.getSenderId() + " has quit Greenfield.");
                             break;
                         case Constants.NEED_MECHANIC:
-                            StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(
-                                    robotMessage.getSenderId(),
-                                    robotMessage.getTimestamp()
-                            ));
+                            if (Mechanic.getInstance().isNeedsFix()) {
+                                // If this robot wants the mechanic too, compares the timestamp and chooses
+                                int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+                                        robotMessage.getSenderId(),
+                                        robotMessage.getTimestamp()
+                                ));
+
+                                // If the one that requested has the priority, send OK
+                                if (queuePos == 0) {
+                                    responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                                }
+                            } else {
+                                // If not interested, directly replies with OK
+                                responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                            }
+                            break;
+                        case Constants.MECHANIC_OK:
+                            Mechanic.getInstance().acknowledgeOK();
                             break;
                         case Constants.MECHANIC_RELEASE:
-                            StartCleaningRobot.notifyForMechanicRelease(robotMessage.getSenderId());
+                            Mechanic.getInstance().notifyForMechanicRelease(robotMessage.getSenderId());
                             break;
                         case Constants.PING:
-                            responseObserver.onNext(RobotMessage.newBuilder()
-                                    .setSenderId(parentRobot.getId())
-                                    .setSenderPort(parentRobot.getPort())
-                                    .setTimestamp(newTimestamp)
-                                    .setStartingPosX(parentRobot.getPosX())
-                                    .setStartingPosY(parentRobot.getPosY())
-                                    .setMessage(Constants.PONG)
-                                    .build());
-
-//                            System.out.println("[PING] Received and replied ping from robot "
-//                                    + robotMessage.getSenderId());
+                            responseObserver.onNext(buildMessage(Constants.PONG, newTimestamp));
                             break;
                         default:
                             // Crashed robot message - crash_{id}
@@ -118,7 +125,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                 deployedRobots.deleteRobot(crashedRobot);
                                 System.out.println("[CRASH] Acknowledged that robot with ID "
                                         + crashedRobot + " has crashed.");
-                            } catch (Exception e){
+                            } catch (Exception e) {
                                 throw new UnrecognisedMessageException(msg);
                             }
                     }

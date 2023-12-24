@@ -11,6 +11,8 @@ public class InputThread extends Thread {
     private volatile boolean running = true;
     private final PM10Simulator simulator;
 
+    public final Object lock = new Object();
+
     public InputThread(PM10Simulator simulator) {
         this.simulator = simulator;
     }
@@ -27,13 +29,23 @@ public class InputThread extends Thread {
                         StartCleaningRobot.healthCheckThread.forceReparation();
                         break;
                     case Constants.QUIT:
-                        // finire operazioni meccanico
+                        // If the robot is being repaired, wait
+                        if (StartCleaningRobot.healthCheckThread.isRepairing()) {
+                            synchronized (lock) {
+                                try {
+                                    lock.wait();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    return;
+                                }
+                            }
+                        }
 
                         simulator.stopMeGently();
                         StartCleaningRobot.sensorThread.stopThread();
 
                         // Notify other robots
-                        StartCleaningRobot.broadcastMessage(Constants.QUIT);
+                        StartCleaningRobot.broadcastMessage(Constants.QUIT, false);
 
                         // Notify the server
                         StartCleaningRobot.deleteRequest(StartCleaningRobot.serverAddress + "/robot/" + selfReference.getId());

@@ -13,6 +13,6 @@ service RobotCommunicationService {
   rpc rcs(stream RobotMessage) returns (stream RobotMessage);
 }
 
-service RobotCommunicationService_Sync {
-  rpc rcs_sync(RobotMessage) returns (RobotMessage);
-}
+//service RobotCommunicationService_Sync {
+//  rpc rcs_sync(RobotMessage) returns (RobotMessage);
+//}

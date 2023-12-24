@@ -1,41 +1,52 @@
 package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
-import shared.beans.CleaningRobot;
-
-import java.util.List;
+import cleaning_robot.beans.Mechanic;
 import java.util.Random;
-
-import shared.beans.MechanicRequest;
 import shared.constants.Constants;
-
-import static cleaning_robot.StartCleaningRobot.timestamp;
-import static cleaning_robot.StartCleaningRobot.selfReference;
 
 
 public class HealthCheckThread extends Thread {
     private volatile boolean running = true;
-    private boolean needsFix;
+    private boolean isRepairing;
+
+    public final Object lock = new Object();
 
     public HealthCheckThread() {
         super();
-        needsFix = false;
+        isRepairing = false;
     }
 
     public void ricartAgrawala() {
+        isRepairing = true;
         System.out.println("[FIX] Starting reparation...");
 
         // Pause the measurements thread
         StartCleaningRobot.sensorThread.setInReparation();
 
-        // Ask every robot for permission
-        StartCleaningRobot.broadcastMessage(Constants.NEED_MECHANIC);
+        // Ask every robot for permission (including itself)
+        StartCleaningRobot.broadcastMessage(Constants.NEED_MECHANIC, true);
 
-        // Adds itself to its own requests queue
-        StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(selfReference.getId(), timestamp.getTimestamp()));
+        // If it's not my turn, wait
+        while (!Mechanic.getInstance().isMyTurn()) {
+            System.out.println("[HealthCheckThread] Not my turn, waiting...");
+            try {
+                synchronized (lock) {
+                    lock.wait();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
 
-        // Starts
-        StartCleaningRobot.waitForMechanicTurn(timestamp.getTimestamp());
+        System.out.println("[HealthCheckThread] My turn, repairing...");
+
+//        // Adds itself to its own requests queue
+//        StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(selfReference.getId(), timestamp.getTimestamp()));
+//
+//        // Starts
+//        StartCleaningRobot.waitForMechanicTurn(timestamp.getTimestamp());
 
         // Simulate the reparation
         try {
@@ -45,18 +56,26 @@ public class HealthCheckThread extends Thread {
         }
 
         // Release the mechanic and notify the other robots
-        StartCleaningRobot.syncBroadcastMessage(Constants.MECHANIC_RELEASE);
-        needsFix = false;
+        StartCleaningRobot.broadcastMessage(Constants.MECHANIC_RELEASE, false);
+        Mechanic.getInstance().setNeedsFix(false);
 
         // Restart the measurements thread
-        StartCleaningRobot.class.notifyAll();
+        synchronized (StartCleaningRobot.sensorThread.lock) {
+            StartCleaningRobot.sensorThread.lock.notifyAll();
+        }
         StartCleaningRobot.sensorThread.setReparationEnded();
 
-        System.out.println("[FIX] Reparation successfully completed.");
+        System.out.println("[HealthCheckThread] Finished reparation");
+
+        // Resume the input thread if it was waiting for this before the quit
+        isRepairing = false;
+        synchronized (StartCleaningRobot.inputThread.lock) {
+            StartCleaningRobot.inputThread.lock.notifyAll();
+        }
     }
 
     public void forceReparation() {
-        needsFix = true;
+        Mechanic.getInstance().setNeedsFix(true);
         ricartAgrawala();
     }
 
@@ -71,11 +90,11 @@ public class HealthCheckThread extends Thread {
                 Thread.currentThread().interrupt();
             }
 
-            if (!needsFix) {
-                needsFix = random.nextDouble() < 0.1;
+            if (!Mechanic.getInstance().isNeedsFix()) {
+                Mechanic.getInstance().setNeedsFix(random.nextDouble() < 0.1);
             }
 
-            if (needsFix) {
+            if (Mechanic.getInstance().isNeedsFix()) {
                 ricartAgrawala();
             }
         }
@@ -84,5 +103,13 @@ public class HealthCheckThread extends Thread {
     public void stopThread() {
         running = false;
         interrupt();
+    }
+
+    public boolean isRepairing() {
+        return isRepairing;
+    }
+
+    public void setRepairing(boolean repairing) {
+        isRepairing = repairing;
     }
 }

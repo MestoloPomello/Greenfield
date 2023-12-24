@@ -25,6 +25,8 @@ public class SensorThread extends Thread {
     private final String clientId;
     private boolean isUnderReparation;
 
+    public final Object lock = new Object();
+
     public SensorThread(Buffer buffer) {
         this.buffer = buffer;
         clientId = MqttClient.generateClientId();
@@ -48,11 +50,14 @@ public class SensorThread extends Thread {
                 Thread.currentThread().interrupt();
             }
 
-            if (isUnderReparation) {
-                try {
-                    StartCleaningRobot.class.wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+            synchronized (lock) {
+                while (isUnderReparation) {
+                    try {
+                        lock.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
             }
 
