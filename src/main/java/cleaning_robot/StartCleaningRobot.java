@@ -175,14 +175,14 @@ public class StartCleaningRobot {
         StreamObserver<RobotMessage> robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
             public void onNext(RobotMessage robotMessage) {
                 String response = robotMessage.getMessage();
-                System.out.println("[IN] From ("
-                        + robotMessage.getSenderId()
-                        + ": "
-                        + robotMessage.getSenderPort()
-                        + "): "
-                        + response);
+//                System.out.println("[IN] From ("
+//                        + robotMessage.getSenderId()
+//                        + ": "
+//                        + robotMessage.getSenderPort()
+//                        + "): "
+//                        + response);
 
-                handleRobotResponse(robotMessage);
+                rcsThread.service.handleRobotMessage(robotMessage, this, true);
                 channel.shutdown();
             }
 
@@ -207,13 +207,13 @@ public class StartCleaningRobot {
 
         try {
             int newTimestamp = timestamp.increaseTimestamp();
-            System.out.println("[OUT] To "
-                    + otherRobot.getPort()
-                    + " "
-                    + otherRobot.getId()
-                    + " | TS: "
-                    + timestamp.getTimestamp()
-                    + " | Msg: " + msg);
+//            System.out.println("[OUT] To "
+//                    + otherRobot.getPort()
+//                    + " "
+//                    + otherRobot.getId()
+//                    + " | TS: "
+//                    + timestamp.getTimestamp()
+//                    + " | Msg: " + msg);
             robotStream.onNext(RobotMessage.newBuilder()
                     .setSenderId(id)
                     .setSenderPort(portNumber)
@@ -230,6 +230,33 @@ public class StartCleaningRobot {
             channel.awaitTermination(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+    public static void broadcastMessage(String message, boolean selfBroadcast) {
+        // Sends a message to all of the other robots (parallel)
+        // If selfBroadcast is true, send the msg even to itself
+        List<Thread> threads = new ArrayList<>();
+
+        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
+            if (otherRobot != null) {
+                if (otherRobot.getId() != id || selfBroadcast) {
+                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));
+                    thread.start();
+                    threads.add(thread);
+                } else {
+                    selfReference = otherRobot;
+                }
+            }
+        }
+
+        // Wait for all the threads to end
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -313,49 +340,6 @@ public class StartCleaningRobot {
 //
 //        return responses;
 //    }
-
-    public static void broadcastMessage(String message, boolean selfBroadcast) {
-        // Sends a message to all of the other robots (parallel)
-        // If selfBroadcast is true, send the msg even to itself
-        List<Thread> threads = new ArrayList<>();
-
-        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
-            if (otherRobot != null) {
-                if (otherRobot.getId() != id || selfBroadcast) {
-                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));
-                    thread.start();
-                    threads.add(thread);
-                } else {
-                    selfReference = otherRobot;
-                }
-            }
-        }
-
-        // Wait for all the threads to end
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    public static void handleRobotResponse(RobotMessage message) {
-
-        // Lamport algorithm for the message's timestamp
-        timestamp.compareAndIncreaseTimestamp(message.getTimestamp());
-
-        // Handle the response's content
-//        String content = message.getMessage();
-//        switch (content) {
-//            case Constants.PONG:
-//
-//                break;
-//            default:
-//                break;
-//        }
-    }
 
 }
 

@@ -14,7 +14,7 @@ public class Mechanic {
     private static final List<MechanicRequest> requestQueue = new ArrayList<>();
     private static boolean needsFix;
 
-    private static int neededOKs, receivedOKs;
+    private int neededOKs, receivedOKs;
 
     private Mechanic() {
         neededOKs = 0;
@@ -42,6 +42,8 @@ public class Mechanic {
 
     public boolean isMyTurn() {
         synchronized (lock) {
+            System.out.println("[MECHANIC] NeededOKs: " + (neededOKs - 1));
+            System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
             return receivedOKs == neededOKs;
         }
     }
@@ -64,7 +66,13 @@ public class Mechanic {
     public void setNeedsFix(boolean needsFix) {
         synchronized (lock) {
             Mechanic.needsFix = needsFix;
+            neededOKs = 0;
+            receivedOKs = 0;
         }
+    }
+
+    public void setNeededOKs(int neededOKs) {
+        this.neededOKs = neededOKs;
     }
 
     public void notifyForMechanicRelease(int solvedRobotId) {

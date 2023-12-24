@@ -6,21 +6,24 @@ import static cleaning_robot.StartCleaningRobot.selfReference;
 import static cleaning_robot.StartCleaningRobot.deployedRobots;
 import static cleaning_robot.StartCleaningRobot.timestamp;
 
+import java.awt.*;
 import java.io.IOException;
 
 public class RcsThread extends Thread  {
 
-    public RcsThread() { }
+    public RobotCommunicationServiceImpl service;
+
+    public RcsThread() {
+        service = new RobotCommunicationServiceImpl(
+                selfReference,
+                deployedRobots,
+                timestamp
+        );
+    }
 
     @Override
     public void run() {
         try {
-            RobotCommunicationServiceImpl service = new RobotCommunicationServiceImpl(
-                    selfReference,
-                    deployedRobots,
-                    timestamp
-            );
-
             io.grpc.Server server = ServerBuilder
                     .forPort(selfReference.getPort())
                     .addService(service)

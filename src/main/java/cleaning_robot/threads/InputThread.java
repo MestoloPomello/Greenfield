@@ -31,6 +31,7 @@ public class InputThread extends Thread {
                     case Constants.QUIT:
                         // If the robot is being repaired, wait
                         if (StartCleaningRobot.healthCheckThread.isRepairing()) {
+                            System.out.println("[INPUT] Quit command queued. Waiting for the reparation to end...");
                             synchronized (lock) {
                                 try {
                                     lock.wait();

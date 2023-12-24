@@ -25,6 +25,7 @@ public class HealthCheckThread extends Thread {
         StartCleaningRobot.sensorThread.setInReparation();
 
         // Ask every robot for permission (including itself)
+        Mechanic.getInstance().setNeededOKs(StartCleaningRobot.deployedRobots.getNumber());
         StartCleaningRobot.broadcastMessage(Constants.NEED_MECHANIC, true);
 
         // If it's not my turn, wait
@@ -94,7 +95,7 @@ public class HealthCheckThread extends Thread {
                 Mechanic.getInstance().setNeedsFix(random.nextDouble() < 0.1);
             }
 
-            if (Mechanic.getInstance().isNeedsFix()) {
+            if (Mechanic.getInstance().isNeedsFix() && !isRepairing) {
                 ricartAgrawala();
             }
         }
