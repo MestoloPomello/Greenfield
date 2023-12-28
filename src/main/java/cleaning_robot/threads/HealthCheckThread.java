@@ -2,12 +2,7 @@ package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
 import cleaning_robot.beans.Mechanic;
-
-import java.util.ArrayList;
 import java.util.Random;
-
-import shared.beans.CleaningRobot;
-import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 
 
@@ -23,14 +18,13 @@ public class HealthCheckThread extends Thread {
     }
 
     public void ricartAgrawala() {
-        isRepairing = true;
+        Mechanic.getInstance().resetReceivedOKs();
         System.out.println("[FIX] Starting reparation...");
 
         // Pause the measurements thread
         StartCleaningRobot.sensorThread.setInReparation();
 
         // Ask every robot for permission (including itself)
-        //Mechanic.getInstance().setNeededOKs(StartCleaningRobot.deployedRobots.getNumber());
         StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
 
         // If it's not my turn, wait
@@ -47,12 +41,7 @@ public class HealthCheckThread extends Thread {
         }
 
         System.out.println("[HealthCheckThread] My turn, repairing...");
-
-//        // Adds itself to its own requests queue
-//        StartCleaningRobot.addRobotToMechanicRequests(new MechanicRequest(selfReference.getId(), timestamp.getTimestamp()));
-//
-//        // Starts
-//        StartCleaningRobot.waitForMechanicTurn(timestamp.getTimestamp());
+        isRepairing = true;
 
         // Simulate the reparation
         try {
@@ -60,14 +49,16 @@ public class HealthCheckThread extends Thread {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        isRepairing = false;
 
         // Release the mechanic and notify the other robots
-        StartCleaningRobot.broadcastMessage(
-                Constants.MECHANIC_OK,
-                false,
-                Mechanic.getInstance().getQueuedRobotsList()
-        );
         Mechanic.getInstance().setNeedsFix(false);
+
+        StartCleaningRobot.broadcastMessage_All(
+                Constants.MECHANIC_RELEASE,
+                true
+                //Mechanic.getInstance().getQueuedRobotsList()
+        );
 
         // Resume the measurements thread
         synchronized (StartCleaningRobot.sensorThread.lock) {
@@ -78,15 +69,18 @@ public class HealthCheckThread extends Thread {
         System.out.println("[HealthCheckThread] Finished reparation");
 
         // Resume the input thread if it was waiting for this before the quit
-        isRepairing = false;
         synchronized (StartCleaningRobot.inputThread.lock) {
             StartCleaningRobot.inputThread.lock.notifyAll();
         }
     }
 
     public void forceReparation() {
-        Mechanic.getInstance().setNeedsFix(true);
-        ricartAgrawala();
+        if (Mechanic.getInstance().isNeedsFix()) {
+            System.out.println("[HealthCheckThread] There is already an ongoing reparation.");
+        } else {
+            Mechanic.getInstance().setNeedsFix(true);
+            ricartAgrawala();
+        }
     }
 
     @Override
@@ -102,10 +96,10 @@ public class HealthCheckThread extends Thread {
 
             if (!Mechanic.getInstance().isNeedsFix()) {
                 Mechanic.getInstance().setNeedsFix(random.nextDouble() < 0.1);
-            }
 
-            if (Mechanic.getInstance().isNeedsFix() && !isRepairing) {
-                ricartAgrawala();
+                if (Mechanic.getInstance().isNeedsFix()) {
+                    ricartAgrawala();
+                }
             }
         }
     }

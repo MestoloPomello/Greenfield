@@ -33,15 +33,6 @@ public class Mechanic {
         }
     }
 
-    public void acknowledgeOK() {
-        synchronized (lock) {
-            receivedOKs++;
-        }
-        synchronized (StartCleaningRobot.healthCheckThread.lock) {
-            StartCleaningRobot.healthCheckThread.lock.notifyAll();
-        }
-    }
-
     public boolean isMyTurn() {
         synchronized (lock) {
             System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
@@ -68,14 +59,23 @@ public class Mechanic {
     public void setNeedsFix(boolean needsFix) {
         synchronized (lock) {
             this.needsFix = needsFix;
-            //neededOKs = 0;
+        }
+    }
+
+    public void resetReceivedOKs() {
+        synchronized (lock) {
             receivedOKs = 0;
         }
     }
 
-//    public void setNeededOKs(int neededOKs) {
-//        this.neededOKs = neededOKs;
-//    }
+    public void acknowledgeOK() {
+        synchronized (lock) {
+            receivedOKs++;
+        }
+        synchronized (StartCleaningRobot.healthCheckThread.lock) {
+            StartCleaningRobot.healthCheckThread.lock.notifyAll();
+        }
+    }
 
     public void notifyForMechanicRelease(int solvedRobotId) {
         MechanicRequest toBeRemoved = null;
@@ -86,11 +86,12 @@ public class Mechanic {
                     break;
                 }
             }
-            requestQueue.remove(toBeRemoved);
+            System.out.println("RequestQueue before: " + requestQueue.toString());
+            if (toBeRemoved != null) requestQueue.remove(toBeRemoved);
+            System.out.println("RequestQueue after: " + requestQueue.toString());
         }
-        synchronized (StartCleaningRobot.healthCheckThread.lock) {
-            StartCleaningRobot.healthCheckThread.lock.notifyAll();
-        }
+
+        acknowledgeOK();
     }
 
     public List<CleaningRobot> getQueuedRobotsList() {

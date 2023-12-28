@@ -99,24 +99,48 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             + robotMessage.getSenderId() + " has quit Greenfield.");
                     break;
                 case Constants.NEED_MECHANIC:
-                    if (
-                            Mechanic.getInstance().isNeedsFix() /*&&
-                                    robotMessage.getSenderId() != parentRobot.getId()*/
-                    ) {
-                        // If this robot wants the mechanic too, compares the timestamp and chooses
+
+                    if (!Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
+                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                    } else if (Mechanic.getInstance().isNeedsFix()) {
                         int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
                                 robotMessage.getSenderId(),
                                 robotMessage.getTimestamp()
                         ));
 
-                        // If the one that requested has the priority, send OK
-                        if (queuePos == 0) {
-                            responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                        //System.out.println("Mechanic before: " + Mechanic.getInstance().toString());
+
+                        if (!StartCleaningRobot.healthCheckThread.isRepairing()) {
+                            // If the one that requested has the priority, send OK
+                            if (queuePos == 0) {
+                                responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                            }
                         }
-                    } else {
-                        // If not interested, directly replies with OK
-                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
                     }
+
+//                    if (
+//                            Mechanic.getInstance().isNeedsFix() /*&&
+//                                    robotMessage.getSenderId() != parentRobot.getId()*/
+//                    ) {
+//
+//                        //System.out.println("Mechanic before: " + Mechanic.getInstance().toString());
+//
+//                        // If this robot wants the mechanic too, compares the timestamp and chooses
+//                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+//                                robotMessage.getSenderId(),
+//                                robotMessage.getTimestamp()
+//                        ));
+//
+//                        //System.out.println("Mechanic after: " + Mechanic.getInstance().toString());
+//
+//                        // If the one that requested has the priority, send OK
+//                        if (queuePos == 0) {
+//                            responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+//                        }
+//                    } else {
+//                        // If not interested, directly replies with OK
+//                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+//                    }
                     break;
                 case Constants.MECHANIC_OK:
                     Mechanic.getInstance().acknowledgeOK();
