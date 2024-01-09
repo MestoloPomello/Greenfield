@@ -66,32 +66,17 @@ public class InputThread extends Thread {
                     System.out.print("> AVG_ROBOT: choose the number of measurements: ");
                     String n = scanner.nextLine();
 
-                    MeasurementsListResponse measurementsAvgsRobotObj = getAvgs(
+                    double measurementsAvgRobot = getAvgs(
                             client,
                             serverAddress + "/client/avg_robot/" + robotId + "/" + n
                     );
 
-                    if (measurementsAvgsRobotObj == null) {
-                        System.out.println("> AVG_ROBOT: null response.");
-                        break;
-                    }
-
-                    System.out.println("MeasurementsListResponse:" + measurementsAvgsRobotObj);
-
-                    // DA SISTEMARE: risposta vuota
-
-                    List<ServerMeasurement> robotMeasurementsList = measurementsAvgsRobotObj.getMeasurementsList();
-                    if (robotMeasurementsList.isEmpty()) {
+                    if (measurementsAvgRobot == -1) {
                         System.out.println("> AVG_ROBOT: this robot hasn't uploaded any measurement.");
                         break;
-                    } else {
-                        System.out.println("> AVG_ROBOT: last " + n + " measurements:");
-                        for (ServerMeasurement sm : robotMeasurementsList) {
-                            System.out.println("\n\tTimestamp: " + sm.getTimestamp() +
-                                    "\n\tValue: " + sm.getValue() +
-                                    "\n\tDistrict: " + sm.getDistrict() + "\n");
-                        }
                     }
+
+                    System.out.println("> AVG_ROBOT: average of last " + n + " measurements: " + measurementsAvgRobot);
                     break;
                 case "avg_time":
                     System.out.print("> AVG_TIME: enter the first timestamp: ");
@@ -99,30 +84,17 @@ public class InputThread extends Thread {
                     System.out.print("> AVG_TIME: enter the second timestamp: ");
                     String t2 = scanner.nextLine();
 
-                    MeasurementsListResponse measurementsAvgsTimeObj = getAvgs(
+                    double measurementsAvgTime = getAvgs(
                             client,
                             serverAddress + "/client/avg_time/" + t1 + "/" + t2
                     );
 
-                    if (measurementsAvgsTimeObj == null) {
-                        System.out.println("> AVG_TIME: null response.");
-                        break;
-                    }
-
-                    System.out.println("MeasurementsListResponse:" + measurementsAvgsTimeObj);
-
-                    List<ServerMeasurement> timeMeasurementsList = measurementsAvgsTimeObj.getMeasurementsList();
-                    if (timeMeasurementsList.isEmpty()) {
+                    if (measurementsAvgTime == -1) {
                         System.out.println("> AVG_TIME: this robot hasn't uploaded any measurement.");
                         break;
-                    } else {
-                        System.out.println("> AVG_TIME: measurements between " + t1 + " and " + t2 + ":");
-                        for (ServerMeasurement sm : timeMeasurementsList) {
-                            System.out.println("\n\tTimestamp: " + sm.getTimestamp() +
-                                    "\n\tValue: " + sm.getValue() +
-                                    "\n\tDistrict: " + sm.getDistrict() + "\n");
-                        }
                     }
+
+                    System.out.println("> AVG_TIME: measurements between " + t1 + " and " + t2 + ": " + measurementsAvgTime);
                     break;
                 default:
                     System.err.println("[ERROR] Unrecognised command.");
@@ -145,13 +117,15 @@ public class InputThread extends Thread {
         }
     }
 
-    public static MeasurementsListResponse getAvgs(Client client, String url) {
+    public static double getAvgs(Client client, String url) {
         WebResource webResource = client.resource(url);
         try {
-            return webResource.type("application/json").get(MeasurementsListResponse.class);
+            String receivedString = webResource.type("application/json").get(String.class);
+            if (receivedString.equals("[]")) return -1;
+            else return Double.parseDouble(receivedString);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
-            return null;
+            return -1;
         }
     }
 }

@@ -3,8 +3,6 @@ package administrator_server.services;
 import administrator_server.beans.CleaningRobots;
 import administrator_server.beans.Measurements;
 import io.grpc.Server;
-import shared.beans.AdaptedServerMeasurement;
-import shared.beans.MeasurementsListResponse;
 import shared.beans.RobotListResponse;
 import shared.beans.ServerMeasurement;
 import simulators.Measurement;
@@ -12,6 +10,7 @@ import simulators.Measurement;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 @Path("/client")
@@ -36,14 +35,15 @@ public class ClientService {
 
         sml.sort(Comparator.comparingLong(Measurement::getTimestamp));
 
-        MeasurementsListResponse mlr;
-        if (n > sml.size()) {
-            mlr = new MeasurementsListResponse(sml);
-        } else {
-            mlr = new MeasurementsListResponse(sml.subList(0, n));
+        double avg = 0;
+        if (n > sml.size()) n = sml.size();
+        for (int i = 0; i < n; i++) {
+            avg += sml.get(i).getValue();
         }
+        if (n != 0) avg /= n;
+
         System.out.println("[Admin Client] Received and satisfied AVG_ROBOT request.");
-        return Response.ok(mlr).build();
+        return Response.ok(Double.toString(avg)).build();
     }
 
     // Lists the air pollution levels sent between timestamps t1 and t2
@@ -52,7 +52,14 @@ public class ClientService {
     @Produces({"application/json", "application/xml"})
     public Response avgTimestamps(@PathParam("t1") long t1, @PathParam("t2") long t2) {
         List<ServerMeasurement> sml = Measurements.getInstance().getMeasurementsList(t1, t2);
+
+        double avg = 0;
+        for (ServerMeasurement sm : sml) {
+            avg += sm.getValue();
+        }
+        if (!sml.isEmpty()) avg /= sml.size();
+
         System.out.println("[Admin Client] Received and satisfied AVG_TIME request.");
-        return Response.ok(sml).build();
+        return Response.ok(Double.toString(avg)).build();
     }
 }
