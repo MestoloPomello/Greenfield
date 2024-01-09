@@ -24,6 +24,7 @@ import simulators.PM10Simulator;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static shared.utils.Utils.generateCoordinatesForDistrict;
 import static shared.utils.Utils.getRandomInt;
 
 
@@ -132,6 +133,16 @@ public class StartCleaningRobot {
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
             return null;
+        }
+    }
+
+    public static boolean updatePosition(int newPosX, int newPosY) {
+        WebResource webResource = client.resource(serverAddress + "/" + id + "/" + newPosX + "-" + newPosY);
+        try {
+            return webResource.type("application/json").put(Boolean.class);
+        } catch (ClientHandlerException e) {
+            System.err.println("[ERROR] Unreachable server.");
+            return false;
         }
     }
 
@@ -252,6 +263,18 @@ public class StartCleaningRobot {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    public static void changeDistrict(int newDistrict) {
+        // Change local district
+        // This will also lead to the change of the MQTT topic because the messages are published using this variable
+        district = newDistrict;
+        int[] newCoordinates = generateCoordinatesForDistrict(newDistrict);
+        posX = newCoordinates[0];
+        posY = newCoordinates[1];
+
+        // Notify the server with the new position
+        updatePosition(newCoordinates[0], newCoordinates[1]);
     }
 
 //    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {

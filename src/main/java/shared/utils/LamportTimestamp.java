@@ -36,7 +36,7 @@ public class LamportTimestamp {
     public int compareAndIncreaseTimestamp(int receivedTimestamp) {
         synchronized (tsLock) {
             if (receivedTimestamp > timestamp) {
-                timestamp = receivedTimestamp + 1;
+                timestamp = receivedTimestamp + tsOffset;
             }
             return timestamp;
         }

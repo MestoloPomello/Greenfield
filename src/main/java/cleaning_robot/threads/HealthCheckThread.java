@@ -19,7 +19,7 @@ public class HealthCheckThread extends Thread {
 
     public void ricartAgrawala() {
         Mechanic.getInstance().resetReceivedOKs();
-        System.out.println("[FIX] Starting reparation...");
+        System.out.println("[FIX] Starting reparation process...");
 
         // Pause the measurements thread
         StartCleaningRobot.sensorThread.setInReparation();

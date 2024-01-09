@@ -16,6 +16,7 @@
     import javax.xml.bind.annotation.XmlElement;
     import javax.xml.bind.annotation.XmlRootElement;
 
+    import static shared.utils.Utils.generateCoordinatesForDistrict;
     import static shared.utils.Utils.getRandomInt;
 
     @XmlRootElement
@@ -132,6 +133,28 @@
             }
         }
 
+        public boolean updatePosition(int robotId, int newPosX, int newPosY) {
+            try {
+                boolean foundId = false;
+
+                synchronized (lock) {
+                    for (CleaningRobot cr : deployedRobots) {
+                        if (cr.getId() == robotId) {
+                            foundId = true;
+                            cr.setPosX(newPosX);
+                            cr.setPosY(newPosY);
+                            break;
+                        }
+                    }
+                    if (!foundId) throw new NoIdException("Couldn't update the robot's position");
+                    return true;
+                }
+            } catch (NoIdException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
         public int deleteRobot(int id) {
             int tbrIndex = -1, index = 0;
 
@@ -188,29 +211,6 @@
                 }
             }
             return minIndex + 1;
-        }
-
-        private static int[] generateCoordinatesForDistrict(int district) {
-            int[] pos = new int[2]; // pos[i] = [x, y] coordinates
-            switch (district) {
-                case 1:
-                    pos[0] = getRandomInt(0, 4);
-                    pos[1] = getRandomInt(0, 4);
-                    break;
-                case 2:
-                    pos[0] = getRandomInt(0, 4);
-                    pos[1] = getRandomInt(5, 9);
-                    break;
-                case 3:
-                    pos[0] = getRandomInt(5, 9);
-                    pos[1] = getRandomInt(5, 9);
-                    break;
-                case 4:
-                    pos[0] = getRandomInt(5, 9);
-                    pos[1] = getRandomInt(0, 4);
-                    break;
-            }
-            return pos;
         }
 
     }

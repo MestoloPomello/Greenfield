@@ -8,6 +8,10 @@ import shared.constants.Constants;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 @Path("/robot")
 public class RobotsService {
@@ -46,6 +50,22 @@ public class RobotsService {
                 return Response.status(Response.Status.NOT_FOUND).build();
             default:
                 return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Updates a robot's position
+    @Path("/{id}/{newPosX}-{newPosY}")
+    @PUT
+    public Response updatePosition(
+            @PathParam("id") int robotId,
+            @PathParam("newPosX") int newPosX,
+            @PathParam("newPosY") int newPosY
+    ) {
+        boolean isSuccessful = CleaningRobots.getInstance().updatePosition(robotId, newPosX, newPosY);
+        if (isSuccessful) {
+            return Response.ok().build();
+        } else {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
     }
 
