@@ -25,7 +25,7 @@ public class PingThread extends Thread {
 
             // Crash-check the next robot, but only if there is at least another one
             if (deployedRobots.getNumber() > 1) {
-                CleaningRobot nextRobot = findNextRobot();
+                CleaningRobot nextRobot = deployedRobots.findNextRobot(selfReference);
                 System.out.println("[CHECK] Checking if robot " + nextRobot.getId() + " is alive...");
                 StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING);
             }
@@ -35,16 +35,5 @@ public class PingThread extends Thread {
     public void stopThread() {
         running = false;
         interrupt();
-    }
-
-    public CleaningRobot findNextRobot() {
-        int currentIndex = deployedRobots.getRobotIndex(selfReference);
-        if (currentIndex == deployedRobots.getNumber() - 1) {
-            // If it's the last, return the first robot's port
-            return deployedRobots.getRobotByIndex(0);
-        } else {
-            // Else return the next robot's port
-            return deployedRobots.getRobotByIndex(currentIndex + 1);
-        }
     }
 }

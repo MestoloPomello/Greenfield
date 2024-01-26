@@ -143,7 +143,7 @@ public class StartCleaningRobot {
     public static void updatePosition(int newPosX, int newPosY) {
         WebResource webResource = client.resource(serverAddress + "/robot/" + id + "/" + newPosX + "-" + newPosY);
         try {
-            webResource.type("application/json").put(Boolean.class);
+            webResource.type("application/json").put();
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
         }
@@ -206,46 +206,54 @@ public class StartCleaningRobot {
                         streamsMap.remove(otherRobotPort);
                     }
 
-                    // Delete the robot from the list
-                    deployedRobots.deleteRobot(otherRobot.getId());
-
-                    // Notify the server that the robot crashed
-                    notifyRobotCrash(otherRobot.getId());
-
                     // If this robot was awaiting for an OK from the crashed one, act as if it sent it
                     Mechanic.getInstance().notifyForMechanicRelease(otherRobot.getId());
 
-                    // Choose the robot to be notified for the district balancing change and notify everyone about it
-                    int[] districts = {0, 0, 0, 0};
-                    for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
-                        int robotDistrict = cr.getDistrictFromPos();
-                        districts[robotDistrict - 1]++;
-                    }
-                    int max = districts[0], min = districts[0];
-                    int oldDistrict = 0, newDistrict = 0;
-                    for (int i = 0; i < 4; i++) {
-                        if (districts[i] > max) {
-                            max = districts[i];
-                            oldDistrict = i + 1;
-                        } else if (districts[i] < min) {
-                            min = districts[i];
-                            newDistrict = i + 1;
+                    // The robot that should start the district change is the one before the one that crashed
+                    boolean hasToStartDistrictChange = deployedRobots.findNextRobot(selfReference).getPort() == otherRobotPort;
+
+                    // Delete the robot from the list
+                    deployedRobots.deleteRobot(otherRobot.getId());
+
+                    if (hasToStartDistrictChange) {
+                        // Notify the server that the robot crashed
+                        notifyRobotCrash(otherRobot.getId());
+
+                        // Choose the robot to be notified for the district balancing change and notify everyone about it
+                        int[] districts = {0, 0, 0, 0};
+                        for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
+                            int robotDistrict = cr.getDistrictFromPos();
+                            districts[robotDistrict - 1]++;
                         }
-                    }
-                    CleaningRobot toBeMoved = null;
-                    for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
-                        if (cr.getDistrictFromPos() == oldDistrict) {
-                            toBeMoved = cr;
-                            break;
+                        System.out.println("Distretti mappati: " + Arrays.toString(districts));
+                        int max = districts[0], min = districts[0];
+                        int oldDistrict = 1, newDistrict = 1;
+                        for (int i = 0; i < 4; i++) {
+                            if (districts[i] > max) {
+                                max = districts[i];
+                                oldDistrict = i + 1;
+                            } else if (districts[i] < min) {
+                                min = districts[i];
+                                newDistrict = i + 1;
+                            }
                         }
+                        CleaningRobot toBeMoved = null;
+                        for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
+                            if (cr.getDistrictFromPos() == oldDistrict) {
+                                toBeMoved = cr;
+                                break;
+                            }
+                        }
+                        System.out.println("Nuovo distretto: " + newDistrict);
+                        int[] newPos = generateCoordinatesForDistrict(newDistrict);
+                        System.out.println("Nuova posizione: [" + newPos[0] + ", " + newPos[1] + "]");
+                        if (toBeMoved != null) broadcastMessage_All(
+                                Constants.CHANGE_DISTRICT + "_"
+                                        + toBeMoved.getId() + "_"
+                                        + newPos[0] + "_"
+                                        + newPos[1],
+                                true);
                     }
-                    int[] newPos = generateCoordinatesForDistrict(newDistrict);
-                    if (toBeMoved != null) broadcastMessage_All(
-                            Constants.CHANGE_DISTRICT + "_"
-                                    + toBeMoved.getId() + "_"
-                                    + newPos[0] + "_"
-                                    + newPos[1],
-                            true);
 
                     // Close the channel with the crashed server
                     try {
@@ -261,8 +269,6 @@ public class StartCleaningRobot {
 
             streamsMap.put(otherRobotPort, robotStream);
         }
-
-        System.out.println("StreamsMap: " + streamsMap.toString());
 
         try {
             int newTimestamp = timestamp.increaseTimestamp();

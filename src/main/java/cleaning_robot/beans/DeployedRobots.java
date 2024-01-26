@@ -4,6 +4,9 @@ import shared.beans.CleaningRobot;
 
 import java.util.List;
 
+import static cleaning_robot.StartCleaningRobot.deployedRobots;
+import static cleaning_robot.StartCleaningRobot.selfReference;
+
 
 public class DeployedRobots {
 
@@ -66,6 +69,17 @@ public class DeployedRobots {
             }
         }
         return null;
+    }
+
+    public CleaningRobot findNextRobot(CleaningRobot robot) {
+        int currentIndex = getRobotIndex(robot);
+        if (currentIndex == getNumber() - 1) {
+            // If it's the last, return the first robot's port
+            return getRobotByIndex(0);
+        } else {
+            // Else return the next robot's port
+            return getRobotByIndex(currentIndex + 1);
+        }
     }
 
     public void changeRobotDistrict(int movedRobotId, int newPosX, int newPosY) {
