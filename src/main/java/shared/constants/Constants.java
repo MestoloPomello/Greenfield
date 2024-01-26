@@ -30,9 +30,11 @@ public final class Constants {
     public static final String PING = "ping";
     public static final String PONG = "pong";
     public static final String FIX = "fix";
+    public static final String CHANGE_DISTRICT = "changeDistrict";
+    public static final String CRASH = "crash";
 
     // Mechanic messages
-    public static final String NEED_MECHANIC = "need_mechanic";
+    public static final String NEED_MECHANIC = "needMechanic";
     public static final String MECHANIC_OK = "ok";
     public static final String MECHANIC_RELEASE = "release";
 

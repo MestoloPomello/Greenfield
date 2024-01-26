@@ -174,7 +174,7 @@
 
                     deployedRobots.remove(tbrIndex);
                 }
-                System.out.println("[QUTI] Acknowledged that robot " + id + " has quit.");
+                System.out.println("[QUIT] Acknowledged that robot " + id + " has quit.");
                 return Constants.STATUS_SUCCESS;
             } catch (NoIdException e) {
                 e.printStackTrace();

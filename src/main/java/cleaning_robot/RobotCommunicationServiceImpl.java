@@ -73,8 +73,10 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
         // Compare and increase the local timestamp with the one received
         int newTimestamp = timestamp.compareAndIncreaseTimestamp(robotMessage.getTimestamp());
 
+        final String[] msgParts = msg.split("_");
+
         try {
-            switch (msg) {
+            switch (msgParts[0]) {
                 case Constants.HELLO:
                     if (!isResponse) {
                         // Saving robot in local list
@@ -99,7 +101,6 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             + robotMessage.getSenderId() + " has quit Greenfield.");
                     break;
                 case Constants.NEED_MECHANIC:
-
                     if (!Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
                         responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
                     } else if (Mechanic.getInstance().isNeedsFix()) {
@@ -153,16 +154,33 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                     break;
                 case Constants.PONG:
                     break;
-                default:
-                    // Crashed robot message - crash_{id}
-                    try {
-                        int crashedRobot = Integer.parseInt(robotMessage.getMessage().split("_")[1]);
-                        deployedRobots.deleteRobot(crashedRobot);
-                        System.out.println("[CRASH] Acknowledged that robot with ID "
-                                + crashedRobot + " has crashed.");
-                    } catch (Exception e) {
-                        throw new UnrecognisedMessageException(msg);
+                case Constants.CRASH:
+                    // Msg format: crash_{crashedRobotId}
+                    int crashedRobot = Integer.parseInt(msgParts[1]);
+                    deployedRobots.deleteRobot(crashedRobot);
+                    System.out.println("[CRASH] Acknowledged that robot with ID "
+                            + crashedRobot + " has crashed.");
+                    break;
+                case Constants.CHANGE_DISTRICT:
+                    // Msg format: changeDistrict_{movedRobotId}_{newPosX}_{newPosY}
+                    final int movedRobotId = Integer.parseInt(msgParts[1]);
+                    final int newPosX = Integer.parseInt(msgParts[2]);
+                    final int newPosY = Integer.parseInt(msgParts[3]);
+                    deployedRobots.changeRobotDistrict(movedRobotId, newPosX, newPosY);
+
+                    if (parentRobot.getId() == movedRobotId) {
+                        // If this robot is the one that got moved, update its data
+                        parentRobot.setPosX(newPosX);
+                        parentRobot.setPosY(newPosY);
+                        // Tell the server the new position
+                        StartCleaningRobot.updatePosition(newPosX, newPosY);
                     }
+
+                    System.out.println("[CRASH] Acknowledged that robot with ID "
+                            + movedRobotId + " has changed its position to [" + newPosX + ", " + newPosY + "].");
+                    break;
+                default:
+                    throw new UnrecognisedMessageException(msgParts[0]);
             }
         } catch (UnrecognisedMessageException e) {
             System.err.println("[RCS] Unrecognised message: " + e);

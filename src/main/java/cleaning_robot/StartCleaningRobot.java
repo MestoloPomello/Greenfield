@@ -1,6 +1,7 @@
 package cleaning_robot;
 
 import cleaning_robot.beans.DeployedRobots;
+import cleaning_robot.beans.Mechanic;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServiceStub;
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
@@ -44,6 +45,9 @@ public class StartCleaningRobot {
     public static InputThread inputThread;
     public static PingThread pingThread;
     public static HealthCheckThread healthCheckThread;
+
+    // Connections with robots
+    private static final Map<Integer, StreamObserver<RobotMessage>> streamsMap = new HashMap<>();
 
 
     public static void main(String[] args) {
@@ -126,7 +130,7 @@ public class StartCleaningRobot {
         }
     }
 
-    public static RobotCreationResponse postNewRobot(InputRobot newRobot){
+    public static RobotCreationResponse postNewRobot(InputRobot newRobot) {
         WebResource webResource = client.resource(serverAddress + "/robot");
         try {
             return webResource.type("application/json").post(RobotCreationResponse.class, new Gson().toJson(newRobot));
@@ -136,13 +140,12 @@ public class StartCleaningRobot {
         }
     }
 
-    public static boolean updatePosition(int newPosX, int newPosY) {
-        WebResource webResource = client.resource(serverAddress + "/" + id + "/" + newPosX + "-" + newPosY);
+    public static void updatePosition(int newPosX, int newPosY) {
+        WebResource webResource = client.resource(serverAddress + "/robot/" + id + "/" + newPosX + "-" + newPosY);
         try {
-            return webResource.type("application/json").put(Boolean.class);
+            webResource.type("application/json").put(Boolean.class);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
-            return false;
         }
     }
 
@@ -157,7 +160,7 @@ public class StartCleaningRobot {
         }
     }
 
-    public static ClientResponse getRequest(String url){
+    public static ClientResponse getRequest(String url) {
         WebResource webResource = client.resource(url);
         try {
             return webResource.type("application/json").get(ClientResponse.class);
@@ -167,7 +170,7 @@ public class StartCleaningRobot {
         }
     }
 
-    public static void deleteRequest(String url){
+    public static void deleteRequest(String url) {
         WebResource webResource = client.resource(url);
         try {
             webResource.type("application/json").delete(String.class);
@@ -176,35 +179,90 @@ public class StartCleaningRobot {
         }
     }
 
-    public static void sendMessageToOtherRobot (CleaningRobot otherRobot, String msg) {
-        final ManagedChannel channel = ManagedChannelBuilder
-                .forTarget(Constants.SERVER_ADDR + ":" + otherRobot.getPort())
-                .usePlaintext()
-                .build();
-        RobotCommunicationServiceStub stub = RobotCommunicationServiceGrpc.newStub(channel);
+    public static void sendMessageToOtherRobot(CleaningRobot otherRobot, String msg) {
 
-        StreamObserver<RobotMessage> robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
-            public void onNext(RobotMessage robotMessage) {
-                rcsThread.service.handleRobotMessage(robotMessage, this, true);
-                channel.shutdown();
-            }
+        int otherRobotPort = otherRobot.getPort();
+        StreamObserver<RobotMessage> robotStream = null;
+        synchronized (streamsMap) {
+            robotStream = streamsMap.get(otherRobotPort);
+        }
 
-            public void onError(Throwable throwable) {
-                System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
+        if (robotStream == null) {
+            final ManagedChannel channel = ManagedChannelBuilder
+                    .forTarget(Constants.SERVER_ADDR + ":" + otherRobotPort)
+                    .usePlaintext()
+                    .build();
 
-                // Delete the robot from the list
-                deployedRobots.deleteRobot(otherRobot.getId());
+            RobotCommunicationServiceStub stub = RobotCommunicationServiceGrpc.newStub(channel);
+            robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
+                public void onNext(RobotMessage robotMessage) {
+                    rcsThread.service.handleRobotMessage(robotMessage, this, true);
+                }
 
-                // Notify the server that the robot crashed
-                notifyRobotCrash(otherRobot.getId());
+                public void onError(Throwable throwable) {
+                    System.out.println("[ERROR] Robot with port " + otherRobotPort + " is unreachable. Closing connection and notifying server.");
 
-                // Close the channel with the crashed server
-                channel.shutdown();
-            }
+                    synchronized (streamsMap) {
+                        streamsMap.remove(otherRobotPort);
+                    }
 
-            public void onCompleted() {
-            }
-        });
+                    // Delete the robot from the list
+                    deployedRobots.deleteRobot(otherRobot.getId());
+
+                    // Notify the server that the robot crashed
+                    notifyRobotCrash(otherRobot.getId());
+
+                    // If this robot was awaiting for an OK from the crashed one, act as if it sent it
+                    Mechanic.getInstance().notifyForMechanicRelease(otherRobot.getId());
+
+                    // Choose the robot to be notified for the district balancing change and notify everyone about it
+                    int[] districts = {0, 0, 0, 0};
+                    for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
+                        int robotDistrict = cr.getDistrictFromPos();
+                        districts[robotDistrict - 1]++;
+                    }
+                    int max = districts[0], min = districts[0];
+                    int oldDistrict = 0, newDistrict = 0;
+                    for (int i = 0; i < 4; i++) {
+                        if (districts[i] > max) {
+                            max = districts[i];
+                            oldDistrict = i + 1;
+                        } else if (districts[i] < min) {
+                            min = districts[i];
+                            newDistrict = i + 1;
+                        }
+                    }
+                    CleaningRobot toBeMoved = null;
+                    for (CleaningRobot cr : deployedRobots.getDeployedRobots()) {
+                        if (cr.getDistrictFromPos() == oldDistrict) {
+                            toBeMoved = cr;
+                            break;
+                        }
+                    }
+                    int[] newPos = generateCoordinatesForDistrict(newDistrict);
+                    if (toBeMoved != null) broadcastMessage_All(
+                            Constants.CHANGE_DISTRICT + "_"
+                                    + toBeMoved.getId() + "_"
+                                    + newPos[0] + "_"
+                                    + newPos[1],
+                            true);
+
+                    // Close the channel with the crashed server
+                    try {
+                        channel.awaitTermination(1, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                public void onCompleted() {
+                }
+            });
+
+            streamsMap.put(otherRobotPort, robotStream);
+        }
+
+        System.out.println("StreamsMap: " + streamsMap.toString());
 
         try {
             int newTimestamp = timestamp.increaseTimestamp();
@@ -227,11 +285,6 @@ public class StartCleaningRobot {
             e.printStackTrace();
         }
 
-        try {
-            channel.awaitTermination(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     public static void broadcastMessage_All(String message, boolean selfBroadcast) {
@@ -263,18 +316,6 @@ public class StartCleaningRobot {
                 Thread.currentThread().interrupt();
             }
         }
-    }
-
-    public static void changeDistrict(int newDistrict) {
-        // Change local district
-        // This will also lead to the change of the MQTT topic because the messages are published using this variable
-        district = newDistrict;
-        int[] newCoordinates = generateCoordinatesForDistrict(newDistrict);
-        posX = newCoordinates[0];
-        posY = newCoordinates[1];
-
-        // Notify the server with the new position
-        updatePosition(newCoordinates[0], newCoordinates[1]);
     }
 
 //    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {

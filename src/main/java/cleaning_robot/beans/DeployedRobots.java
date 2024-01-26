@@ -68,6 +68,18 @@ public class DeployedRobots {
         return null;
     }
 
+    public void changeRobotDistrict(int movedRobotId, int newPosX, int newPosY) {
+        synchronized (lock) {
+            for (CleaningRobot cr : deployedRobots) {
+                if (cr != null && cr.getId() == movedRobotId) {
+                    cr.setPosX(newPosX);
+                    cr.setPosY(newPosY);
+                    break;
+                }
+            }
+        }
+    }
+
     @Override
     public String toString() {
         StringBuilder str = new StringBuilder("[LOG] Deployed robots: ");
