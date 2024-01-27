@@ -19,7 +19,6 @@ public class Mechanic {
     private int /*neededOKs,*/ receivedOKs;
 
     private Mechanic() {
-        //neededOKs = 0;
         receivedOKs = 0;
         needsFix = false;
     }

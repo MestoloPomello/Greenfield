@@ -5,8 +5,8 @@
 - se si avviano fix contemporaneamente, si gestiscono correttamente.
 Se si prova con uno separato dopo, manca il self-OK e non parte niente
 
-- Opzionale parte 1: autobalance distretti quando un robot crasha
-  - il robot che si accorge (quello prima) rimuove quello crashato dalla sua lista
+- FINITA Opzionale parte 1: autobalance distretti quando un robot crasha
+  - OK il robot che si accorge (quello prima) rimuove quello crashato dalla sua lista
   e calcola la distribuzione nei distretti usando la lista
     - OK calcola numero di robot per distretto
     - OK ordina per numero di distretti

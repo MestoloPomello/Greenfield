@@ -55,20 +55,13 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
             StreamObserver<RobotMessage> responseObserver,
             boolean isResponse
     ) {
+        final String msg = robotMessage.getMessage();
 //        System.out.println("[IN] From ("
 //                + robotMessage.getSenderId()
 //                + ": "
 //                + robotMessage.getSenderPort()
 //                + "): "
-//                + robotMessage.getMessage());
-
-        final String msg = robotMessage.getMessage();
-        System.out.println("[IN] From ("
-                + robotMessage.getSenderId()
-                + ": "
-                + robotMessage.getSenderPort()
-                + "): "
-                + msg);
+//                + msg);
 
         // Compare and increase the local timestamp with the one received
         int newTimestamp = timestamp.compareAndIncreaseTimestamp(robotMessage.getTimestamp());
@@ -78,6 +71,8 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
         try {
             switch (msgParts[0]) {
                 case Constants.HELLO:
+                    System.out.println("[HELLO] Acknowledged robot with port " +
+                            robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
                     if (!isResponse) {
                         // Saving robot in local list
                         deployedRobots.insertRobot(new CleaningRobot(
@@ -88,8 +83,8 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                 robotMessage.getStartingPosY()
                         ));
 
-                        System.out.println("[HELLO] Acknowledged robot with port " +
-                                robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
+//                        System.out.println("[HELLO] Acknowledged robot with port " +
+//                                robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
 
                         // Ack response
                         responseObserver.onNext(buildMessage(Constants.HELLO, newTimestamp));
@@ -101,23 +96,45 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                             + robotMessage.getSenderId() + " has quit Greenfield.");
                     break;
                 case Constants.NEED_MECHANIC:
+                    System.out.println("[MECHANIC] Robot " + robotMessage.getSenderId() + " requested mechanic.");
+
                     if (!Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
                         responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
-                    } else if (Mechanic.getInstance().isNeedsFix()) {
+                    } else if (StartCleaningRobot.healthCheckThread.isRepairing()) {
+                        Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+                                robotMessage.getSenderId(),
+                                robotMessage.getTimestamp()
+                        ));
+                        System.out.println("Queued request: " + Mechanic.getInstance().toString());
+                    } else if (Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
                         int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
                                 robotMessage.getSenderId(),
                                 robotMessage.getTimestamp()
                         ));
 
-                        //System.out.println("Mechanic before: " + Mechanic.getInstance().toString());
-
-                        if (!StartCleaningRobot.healthCheckThread.isRepairing()) {
-                            // If the one that requested has the priority, send OK
-                            if (queuePos == 0) {
-                                responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
-                            }
+                        // If the one that requested has the priority, send OK
+                        if (queuePos == 0) {
+                            responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
                         }
                     }
+
+//                    if (!Mechanic.getInstance().isNeedsFix() /*&& !StartCleaningRobot.healthCheckThread.isRepairing()*/) {
+//                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+//                    } else if (Mechanic.getInstance().isNeedsFix()) {
+//                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+//                                robotMessage.getSenderId(),
+//                                robotMessage.getTimestamp()
+//                        ));
+//
+//                        System.out.println("Mechanic before: " + Mechanic.getInstance().toString());
+//
+//                        if (!StartCleaningRobot.healthCheckThread.isRepairing()) {
+//                            // If the one that requested has the priority, send OK
+//                            if (queuePos == 0) {
+//                                responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+//                            }
+//                        }
+//                    }
 
 //                    if (
 //                            Mechanic.getInstance().isNeedsFix() /*&&
@@ -132,7 +149,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 //                                robotMessage.getTimestamp()
 //                        ));
 //
-//                        //System.out.println("Mechanic after: " + Mechanic.getInstance().toString());
+//                        System.out.println("Mechanic after: " + Mechanic.getInstance().toString());
 //
 //                        // If the one that requested has the priority, send OK
 //                        if (queuePos == 0) {
@@ -144,9 +161,11 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 //                    }
                     break;
                 case Constants.MECHANIC_OK:
+                    System.out.println("[MECHANIC] OK from " + robotMessage.getSenderId());
                     Mechanic.getInstance().acknowledgeOK();
                     break;
                 case Constants.MECHANIC_RELEASE:
+                    System.out.println("[MECHANIC] Released from " + robotMessage.getSenderId());
                     Mechanic.getInstance().notifyForMechanicRelease(robotMessage.getSenderId());
                     break;
                 case Constants.PING:
