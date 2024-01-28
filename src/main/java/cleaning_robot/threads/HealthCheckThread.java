@@ -3,6 +3,8 @@ package cleaning_robot.threads;
 import cleaning_robot.StartCleaningRobot;
 import cleaning_robot.beans.Mechanic;
 import java.util.Random;
+
+import shared.beans.MechanicRequest;
 import shared.constants.Constants;
 
 
@@ -23,6 +25,12 @@ public class HealthCheckThread extends Thread {
 
         // Pause the measurements thread
         StartCleaningRobot.sensorThread.setInReparation();
+
+        // Create my request
+        Mechanic.getInstance().setMyRequest(new MechanicRequest(
+                StartCleaningRobot.id,
+                StartCleaningRobot.timestamp.getTimestamp()
+        ));
 
         // Ask every robot for permission (including itself)
         StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
@@ -54,11 +62,14 @@ public class HealthCheckThread extends Thread {
         // Release the mechanic and notify the other robots
         Mechanic.getInstance().setNeedsFix(false);
 
-        StartCleaningRobot.broadcastMessage_All(
-                Constants.MECHANIC_RELEASE,
-                true
-                //Mechanic.getInstance().getQueuedRobotsList()
+        StartCleaningRobot.broadcastMessage(
+                Constants.MECHANIC_OK,
+                false,
+                Mechanic.getInstance().getQueuedRobotsList()
         );
+
+        // Clear the queue
+        Mechanic.getInstance().resetRequestQueue();
 
         // Resume the measurements thread
         synchronized (StartCleaningRobot.sensorThread.lock) {

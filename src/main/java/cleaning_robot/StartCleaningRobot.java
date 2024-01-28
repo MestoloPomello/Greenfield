@@ -83,7 +83,7 @@ public class StartCleaningRobot {
 
                     System.out.println("[SUCCESS] New robot accepted from the server." +
                             "\n\tID: " + id +
-                            "\n\tDistrict: " + district +
+                            "\n\tAssigned District: " + district +
                             "\n\tStarting PosX: " + posX +
                             "\n\tStarting PosY: " + posY +
                             "\n\tPort: " + portNumber + "\n");

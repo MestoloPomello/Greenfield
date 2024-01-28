@@ -11,16 +11,19 @@ import java.util.stream.Collectors;
 
 public class Mechanic {
 
+    private final static Object receivedOKsLock = new Object();
     private final static Object lock = new Object();
     private static Mechanic instance;
     private static final List<MechanicRequest> requestQueue = new ArrayList<>();
     private boolean needsFix;
+    private MechanicRequest myRequest;
 
     private int /*neededOKs,*/ receivedOKs;
 
     private Mechanic() {
         receivedOKs = 0;
         needsFix = false;
+        myRequest = null;
     }
 
     // Singleton
@@ -33,11 +36,9 @@ public class Mechanic {
     }
 
     public boolean isMyTurn() {
-        synchronized (lock) {
-            System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
-            System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
-            return receivedOKs == StartCleaningRobot.deployedRobots.getNumber();
-        }
+        System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
+        System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
+        return receivedOKs >= StartCleaningRobot.deployedRobots.getNumber();
     }
 
     public int addRobotToMechanicRequests(MechanicRequest newRequest) {
@@ -47,6 +48,24 @@ public class Mechanic {
             requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
             return requestQueue.indexOf(newRequest);
         }
+    }
+
+    public void setMyRequest(MechanicRequest myRequest) {
+        this.myRequest = myRequest;
+    }
+
+    public MechanicRequest getMyRequest() {
+        return myRequest;
+    }
+
+    public boolean isFirst(long timestamp) {
+        return timestamp < myRequest.getTimestamp();
+//        synchronized (requestQueue) {
+//            requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
+//            System.out.println("isFirst ordered requestQueue: " + requestQueue);
+//            if (requestQueue.isEmpty()) return true;
+//            return timestamp < requestQueue.get(0).getTimestamp();
+//        }
     }
 
     public boolean isNeedsFix() {
@@ -62,17 +81,26 @@ public class Mechanic {
     }
 
     public void resetReceivedOKs() {
-        synchronized (lock) {
+        synchronized (receivedOKsLock) {
             receivedOKs = 0;
         }
     }
 
+    public void decreaseReceivedOKs () {
+        synchronized (receivedOKsLock) {
+            receivedOKs--;
+            System.out.println("--- ReceivedOKs decrementati. Nuovo valore: " + receivedOKs);
+        }
+    }
+
     public void acknowledgeOK() {
-        synchronized (lock) {
+        synchronized (receivedOKsLock) {
             receivedOKs++;
+            System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
         }
         synchronized (StartCleaningRobot.healthCheckThread.lock) {
             StartCleaningRobot.healthCheckThread.lock.notifyAll();
+            System.out.println("Thread Svegliato!");
         }
     }
 
@@ -105,43 +133,22 @@ public class Mechanic {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public String toString() {
-        StringBuilder requestsString = new StringBuilder();
-        for (MechanicRequest mr : requestQueue) {
-            requestsString.append("\n\t\t").append(mr.toString());
+    public void resetRequestQueue() {
+        synchronized (requestQueue) {
+            requestQueue.clear();
         }
-        return "> Mechanic data:" +
-                "\n\tneedsFix: " + needsFix +
-                "\n\trequests queue:" + requestsString;
     }
 
-//    public static void waitForMechanicTurn(long reqTimestamp) {
-//        synchronized (lock) {
-//            addRobotToMechanicRequests(new MechanicRequest(StartCleaningRobot.id, reqTimestamp));
-//
-//            // If there are one or more robots that came first, wait for a notify
-//            while (!requestQueue.isEmpty() && requestQueue.get(0).getRobotId() == StartCleaningRobot.id) {
-//                try {
-//                    lock.wait();
-//                } catch (InterruptedException e) {
-//                    Thread.currentThread().interrupt();
-//                }
-//            }
-//
-//            // Remove the first request (this) from the list and notify the other robots
-//            requestQueue.remove(0);
-//
-//            // Tell the other robots that this one has finished
-//            StartCleaningRobot.broadcastMessage(Constants.MECHANIC_RELEASE);
+    @Override
+    public String toString() {
+//        StringBuilder requestsString = new StringBuilder();
+//        for (MechanicRequest mr : requestQueue) {
+//            requestsString.append("\n\t\t").append(mr.toString());
 //        }
-//
-//    }
-//
-//    public static List<MechanicRequest> getMechanicRequests() {
-//        synchronized (requestQueue) {
-//            return requestQueue;
-//        }
-//    }
+//        return "> Mechanic data:" +
+//                "\n\tneedsFix: " + needsFix +
+//                "\n\trequests queue:" + requestsString;
+        return requestQueue.toString();
+    }
 
 }

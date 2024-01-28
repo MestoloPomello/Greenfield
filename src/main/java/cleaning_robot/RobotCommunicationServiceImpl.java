@@ -56,8 +56,9 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
             boolean isResponse
     ) {
         final String msg = robotMessage.getMessage();
+        int senderId = robotMessage.getSenderId();
 //        System.out.println("[IN] From ("
-//                + robotMessage.getSenderId()
+//                + senderId
 //                + ": "
 //                + robotMessage.getSenderPort()
 //                + "): "
@@ -72,11 +73,11 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
             switch (msgParts[0]) {
                 case Constants.HELLO:
                     System.out.println("[HELLO] Acknowledged robot with port " +
-                            robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
+                            robotMessage.getSenderPort() + " and ID " + senderId);
                     if (!isResponse) {
                         // Saving robot in local list
                         deployedRobots.insertRobot(new CleaningRobot(
-                                robotMessage.getSenderId(),
+                                senderId,
                                 robotMessage.getSenderPort(),
                                 Constants.SERVER_ADDR,
                                 robotMessage.getStartingPosX(),
@@ -84,45 +85,67 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                         ));
 
 //                        System.out.println("[HELLO] Acknowledged robot with port " +
-//                                robotMessage.getSenderPort() + " and ID " + robotMessage.getSenderId());
+//                                robotMessage.getSenderPort() + " and ID " + senderId);
 
                         // Ack response
                         responseObserver.onNext(buildMessage(Constants.HELLO, newTimestamp));
                     }
                     break;
                 case Constants.QUIT:
-                    deployedRobots.deleteRobot(robotMessage.getSenderId());
+                    deployedRobots.deleteRobot(senderId);
                     System.out.println("[QUIT] Acknowledged that robot with ID "
-                            + robotMessage.getSenderId() + " has quit Greenfield.");
+                            + senderId + " has quit Greenfield.");
                     break;
                 case Constants.NEED_MECHANIC:
-                    System.out.println("[MECHANIC] Robot " + robotMessage.getSenderId() + " requested mechanic.");
+                    if (senderId == parentRobot.getId()) {
+                        System.out.println("[MECHANIC] SELF REQUEST");
+//                        Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+//                                senderId,
+//                                robotMessage.getTimestamp()
+//                        ));
+                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                        break;
+                    } else {
+                        System.out.println("[MECHANIC] Robot " + senderId + " requested mechanic.");
+                    }
 
                     if (!Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
                         responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
                     } else if (StartCleaningRobot.healthCheckThread.isRepairing()) {
                         Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
-                                robotMessage.getSenderId(),
+                                senderId,
                                 robotMessage.getTimestamp()
                         ));
-                        System.out.println("Queued request: " + Mechanic.getInstance().toString());
+                        System.out.println("[MECHANIC] Queued request: " + Mechanic.getInstance().toString());
                     } else if (Mechanic.getInstance().isNeedsFix() && !StartCleaningRobot.healthCheckThread.isRepairing()) {
-                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
-                                robotMessage.getSenderId(),
-                                robotMessage.getTimestamp()
-                        ));
+//                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+//                                senderId,
+//                                robotMessage.getTimestamp()
+//                        ));
 
-                        // If the one that requested has the priority, send OK
-                        if (queuePos == 0) {
+                        System.out.println("RequestQueue before: " + Mechanic.getInstance().toString());
+
+                        if (Mechanic.getInstance().isFirst(robotMessage.getTimestamp())) {
+                            // If the one that requested has the priority, send OK
                             responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
+                            // And decrease the received OKs (this other robot has now the priority)
+                            Mechanic.getInstance().decreaseReceivedOKs();
+                        } else {
+                            // Otherwise, queue the request
+                            Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
+                                    senderId,
+                                    robotMessage.getTimestamp()
+                            ));
                         }
+
+                        System.out.println("RequestQueue after: " + Mechanic.getInstance().toString());
                     }
 
 //                    if (!Mechanic.getInstance().isNeedsFix() /*&& !StartCleaningRobot.healthCheckThread.isRepairing()*/) {
 //                        responseObserver.onNext(buildMessage(Constants.MECHANIC_OK, newTimestamp));
 //                    } else if (Mechanic.getInstance().isNeedsFix()) {
 //                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
-//                                robotMessage.getSenderId(),
+//                                senderId,
 //                                robotMessage.getTimestamp()
 //                        ));
 //
@@ -138,14 +161,14 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 
 //                    if (
 //                            Mechanic.getInstance().isNeedsFix() /*&&
-//                                    robotMessage.getSenderId() != parentRobot.getId()*/
+//                                    senderId != parentRobot.getId()*/
 //                    ) {
 //
 //                        //System.out.println("Mechanic before: " + Mechanic.getInstance().toString());
 //
 //                        // If this robot wants the mechanic too, compares the timestamp and chooses
 //                        int queuePos = Mechanic.getInstance().addRobotToMechanicRequests(new MechanicRequest(
-//                                robotMessage.getSenderId(),
+//                                senderId,
 //                                robotMessage.getTimestamp()
 //                        ));
 //
@@ -161,12 +184,20 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
 //                    }
                     break;
                 case Constants.MECHANIC_OK:
-                    System.out.println("[MECHANIC] OK from " + robotMessage.getSenderId());
+                    if (senderId == parentRobot.getId()) {
+                        System.out.println("[MECHANIC] SELF OK");
+                    } else {
+                        System.out.println("[MECHANIC] OK from " + senderId);
+                    }
                     Mechanic.getInstance().acknowledgeOK();
                     break;
                 case Constants.MECHANIC_RELEASE:
-                    System.out.println("[MECHANIC] Released from " + robotMessage.getSenderId());
-                    Mechanic.getInstance().notifyForMechanicRelease(robotMessage.getSenderId());
+                    if (senderId == parentRobot.getId()) {
+                        System.out.println("[MECHANIC] SELF RELEASE");
+                    } else {
+                        System.out.println("[MECHANIC] Released from " + senderId);
+                    }
+                    Mechanic.getInstance().notifyForMechanicRelease(senderId);
                     break;
                 case Constants.PING:
                     responseObserver.onNext(buildMessage(Constants.PONG, newTimestamp));
