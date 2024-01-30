@@ -207,7 +207,8 @@ public class StartCleaningRobot {
                     }
 
                     // If this robot was awaiting for an OK from the crashed one, act as if it sent it
-                    Mechanic.getInstance().notifyForMechanicRelease(otherRobot.getId());
+                    //Mechanic.getInstance().notifyForMechanicRelease(otherRobot.getId());
+                    healthCheckThread.increaseReceivedOKs(otherRobot.getId());
 
                     // The robot that should start the district change is the one before the one that crashed
                     boolean hasToStartDistrictChange = deployedRobots.findNextRobot(selfReference).getPort() == otherRobotPort;

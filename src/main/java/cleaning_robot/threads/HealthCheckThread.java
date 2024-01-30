@@ -2,6 +2,10 @@ package cleaning_robot.threads;
 
 import cleaning_robot.StartCleaningRobot;
 import cleaning_robot.beans.Mechanic;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import shared.beans.MechanicRequest;
@@ -12,15 +16,42 @@ public class HealthCheckThread extends Thread {
     private volatile boolean running = true;
     private boolean isRepairing;
 
+    private final List<String> receivedOKs;
     public final Object lock = new Object();
 
     public HealthCheckThread() {
         super();
         isRepairing = false;
+        receivedOKs = new ArrayList<>();
+    }
+
+    public void increaseReceivedOKs(int robotId) {
+        synchronized (receivedOKs) {
+            System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] INGRESSO sezione critica HealthCheckThread");
+            receivedOKs.add("r" + robotId);
+            System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
+            System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] USCITA sezione critica HealthCheckThread");
+        }
+        synchronized (lock) {
+            lock.notifyAll();
+        }
+    }
+
+    public void decreaseReceivedOKs (int robotId) {
+        synchronized (receivedOKs) {
+            System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] INGRESSO sezione critica HealthCheckThread");
+            receivedOKs.remove("r" + robotId);
+            System.out.println("--- ReceivedOKs decrementati. Nuovo valore: " + receivedOKs);
+            System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] USCITA sezione critica HealthCheckThread");
+        }
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 
     public void ricartAgrawala() {
-        Mechanic.getInstance().resetReceivedOKs();
+        //Mechanic.getInstance().resetReceivedOKs();
+        receivedOKs.clear();
         System.out.println("[FIX] Starting reparation process...");
 
         // Pause the measurements thread
@@ -36,16 +67,24 @@ public class HealthCheckThread extends Thread {
         StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
 
         // If it's not my turn, wait
-        while (!Mechanic.getInstance().isMyTurn()) {
-            System.out.println("[HealthCheckThread] Not my turn, waiting...");
+        while (receivedOKs.size() < StartCleaningRobot.deployedRobots.getNumber()) {
+            System.out.println("[HealthCheckThread] Awakened and acknowledged OK, waiting for everyone...");
             try {
                 synchronized (lock) {
+                    System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] WAIT - INGRESSO sezione critica HealthCheckThread");
                     lock.wait();
+                    System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] WAIT - USCITA sezione critica HealthCheckThread");
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
             }
+//            synchronized (receivedOKs) {
+//                System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] INGRESSO sezione critica HealthCheckThread");
+//                receivedOKs.add();
+//                System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
+//                System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] USCITA sezione critica HealthCheckThread");
+//            }
         }
 
         System.out.println("[HealthCheckThread] My turn, repairing...");

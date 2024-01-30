@@ -36,17 +36,19 @@ public class Mechanic {
     }
 
     public boolean isMyTurn() {
-        System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
-        System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
-        return receivedOKs >= StartCleaningRobot.deployedRobots.getNumber();
+        synchronized (lock) {
+            System.out.println("[MECHANIC] NeededOKs: " + (StartCleaningRobot.deployedRobots.getNumber()));
+            System.out.println("[MECHANIC] ReceivedOKs: " + receivedOKs);
+            return receivedOKs >= StartCleaningRobot.deployedRobots.getNumber();
+        }
     }
 
-    public int addRobotToMechanicRequests(MechanicRequest newRequest) {
+    public void addRobotToMechanicRequests(MechanicRequest newRequest) {
         // Returns the index of the item after being sorted for timestamp
         synchronized (requestQueue) {
             requestQueue.add(newRequest);
             requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
-            return requestQueue.indexOf(newRequest);
+            //return requestQueue.indexOf(newRequest);
         }
     }
 
@@ -80,27 +82,34 @@ public class Mechanic {
         }
     }
 
-    public void resetReceivedOKs() {
-        synchronized (receivedOKsLock) {
-            receivedOKs = 0;
-        }
-    }
-
-    public void decreaseReceivedOKs () {
-        synchronized (receivedOKsLock) {
-            receivedOKs--;
-            System.out.println("--- ReceivedOKs decrementati. Nuovo valore: " + receivedOKs);
-        }
-    }
+//    public void resetReceivedOKs() {
+//        synchronized (lock) {
+//            receivedOKs = 0;
+//        }
+//    }
+//
+//    public void increaseReceivedOKs() {
+//        synchronized (lock) {
+//            receivedOKs++;
+//            System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
+//        }
+//    }
+//
+//    public void decreaseReceivedOKs () {
+//        synchronized (lock) {
+//            receivedOKs--;
+//            System.out.println("--- ReceivedOKs decrementati. Nuovo valore: " + receivedOKs);
+//        }
+//    }
 
     public void acknowledgeOK() {
-        synchronized (receivedOKsLock) {
-            receivedOKs++;
-            System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
-        }
+//        synchronized (receivedOKsLock) {
+//            receivedOKs++;
+//            System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
+//        }
         synchronized (StartCleaningRobot.healthCheckThread.lock) {
             StartCleaningRobot.healthCheckThread.lock.notifyAll();
-            System.out.println("Thread Svegliato!");
+//            System.out.println("Thread Svegliato!");
         }
     }
 
