@@ -138,6 +138,7 @@ public class RobotCommunicationServiceImpl extends RobotCommunicationServiceImpl
                                     senderId,
                                     robotMessage.getTimestamp()
                             ));
+                            //StartCleaningRobot.healthCheckThread.increaseReceivedOKs(senderId);
                         }
 
 //                        System.out.println("RequestQueue after: " + Mechanic.getInstance().toString());

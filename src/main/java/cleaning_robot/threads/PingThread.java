@@ -27,7 +27,7 @@ public class PingThread extends Thread {
             if (deployedRobots.getNumber() > 1) {
                 CleaningRobot nextRobot = deployedRobots.findNextRobot(selfReference);
                 //System.out.print("[CHECK] Checking if robot " + nextRobot.getId() + " is alive...");
-                StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING);
+                StartCleaningRobot.sendMessageToOtherRobot(nextRobot, Constants.PING, -1);
             }
         }
     }

@@ -179,7 +179,7 @@ public class StartCleaningRobot {
         }
     }
 
-    public static void sendMessageToOtherRobot(CleaningRobot otherRobot, String msg) {
+    public static void sendMessageToOtherRobot(CleaningRobot otherRobot, String msg, int msgTimestamp) {
 
         int otherRobotPort = otherRobot.getPort();
         StreamObserver<RobotMessage> robotStream = null;
@@ -272,7 +272,7 @@ public class StartCleaningRobot {
         }
 
         try {
-            int newTimestamp = timestamp.increaseTimestamp();
+            if (msgTimestamp == -1) msgTimestamp = timestamp.increaseTimestamp();
 //            System.out.println("[OUT] To "
 //                    + otherRobot.getPort()
 //                    + " "
@@ -283,7 +283,7 @@ public class StartCleaningRobot {
             robotStream.onNext(RobotMessage.newBuilder()
                     .setSenderId(id)
                     .setSenderPort(portNumber)
-                    .setTimestamp(newTimestamp)
+                    .setTimestamp(msgTimestamp)
                     .setStartingPosX(posX)
                     .setStartingPosY(posY)
                     .setMessage(msg)
@@ -303,10 +303,12 @@ public class StartCleaningRobot {
         // If selfBroadcast is true, send the msg even to itself
         List<Thread> threads = new ArrayList<>();
 
+        int newTimestamp = timestamp.increaseTimestamp();
+
         for (CleaningRobot otherRobot : receivers) {
             if (otherRobot != null) {
                 if (otherRobot.getId() != id || selfBroadcast) {
-                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message));
+                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message, newTimestamp));
                     thread.start();
                     threads.add(thread);
                 } else {
@@ -324,87 +326,6 @@ public class StartCleaningRobot {
             }
         }
     }
-
-//    public static RobotMessage sendMessageToOtherRobot_Sync(CleaningRobot otherRobot, String msg) {
-//        final ManagedChannel channel = ManagedChannelBuilder
-//                .forTarget(Constants.SERVER_ADDR + ":" + otherRobot.getPort())
-//                .usePlaintext()
-//                .build();
-//
-//        RobotCommunicationService_SyncGrpc.RobotCommunicationService_SyncBlockingStub stub
-//                = RobotCommunicationService_SyncGrpc.newBlockingStub(channel);
-//
-//        try {
-//            int newTimestamp = timestamp.increaseTimestamp();
-//            RobotMessage request = RobotMessage.newBuilder()
-//                    .setSenderId(id)
-//                    .setSenderPort(portNumber)
-//                    .setTimestamp(newTimestamp)
-//                    .setStartingPosX(posX)
-//                    .setStartingPosY(posY)
-//                    .setMessage(msg)
-//                    .build();
-//
-//            return stub.rcsSync(request);
-//        } catch (StatusRuntimeException e) {
-//            e.printStackTrace();
-//
-//            System.out.println("[ERROR] Robot with port " + otherRobot.getPort() + " is unreachable. Closing connection and notifying server.");
-//
-//            // Delete the robot from the list
-//            deployedRobots.deleteRobot(otherRobot.getId());
-//
-//            // Notify the server that the robot crashed
-//            notifyRobotCrash(otherRobot.getId());
-//
-//            // Close the channel with the crashed server
-//            channel.shutdown();
-//
-//            return null;
-//        } finally {
-//            channel.shutdown();
-//            try {
-//                channel.awaitTermination(1, TimeUnit.SECONDS);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    }
-
-//    public static List<RobotMessage> syncBroadcastMessage(String message) {
-//        List<Thread> threads = new ArrayList<>();
-//        List<RobotMessage> responses = new ArrayList<>();
-//
-//        for (CleaningRobot otherRobot : deployedRobots.getDeployedRobots()) {
-//            if (otherRobot != null) {
-//                if (otherRobot.getId() != id) {
-//                    Thread thread = new Thread(() -> {
-//                        RobotMessage response = sendMessageToOtherRobot_Sync(otherRobot, message);
-//                        if (response != null) {
-//                            synchronized (responses) {
-//                                responses.add(response);
-//                            }
-//                        }
-//                    });
-//                    thread.start();
-//                    threads.add(thread);
-//                } else {
-//                    selfReference = otherRobot;
-//                }
-//            }
-//        }
-//
-//        // Wait for all the threads to end
-//        for (Thread thread : threads) {
-//            try {
-//                thread.join();
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            }
-//        }
-//
-//        return responses;
-//    }
 
 }
 

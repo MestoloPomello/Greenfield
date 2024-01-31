@@ -50,8 +50,11 @@ public class HealthCheckThread extends Thread {
     }
 
     public void ricartAgrawala() {
+
         //Mechanic.getInstance().resetReceivedOKs();
-        receivedOKs.clear();
+        synchronized (receivedOKs) {
+            receivedOKs.clear();
+        }
         System.out.println("[FIX] Starting reparation process...");
 
         // Pause the measurements thread
@@ -67,7 +70,7 @@ public class HealthCheckThread extends Thread {
         StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
 
         // If it's not my turn, wait
-        while (receivedOKs.size() < StartCleaningRobot.deployedRobots.getNumber()) {
+        while (getReceivedOKsNumber() < StartCleaningRobot.deployedRobots.getNumber()) {
             System.out.println("[HealthCheckThread] Awakened and acknowledged OK, waiting for everyone...");
             try {
                 synchronized (lock) {
@@ -79,12 +82,6 @@ public class HealthCheckThread extends Thread {
                 Thread.currentThread().interrupt();
                 return;
             }
-//            synchronized (receivedOKs) {
-//                System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] INGRESSO sezione critica HealthCheckThread");
-//                receivedOKs.add();
-//                System.out.println("+++ ReceivedOKs incrementati. Nuovo valore: " + receivedOKs);
-//                System.out.println("[" + new Timestamp(System.currentTimeMillis()) + "] USCITA sezione critica HealthCheckThread");
-//            }
         }
 
         System.out.println("[HealthCheckThread] My turn, repairing...");
@@ -121,6 +118,12 @@ public class HealthCheckThread extends Thread {
         // Resume the input thread if it was waiting for this before the quit
         synchronized (StartCleaningRobot.inputThread.lock) {
             StartCleaningRobot.inputThread.lock.notifyAll();
+        }
+    }
+
+    private int getReceivedOKsNumber() {
+        synchronized (receivedOKs) {
+            return receivedOKs.size();
         }
     }
 
