@@ -67,7 +67,7 @@ public class HealthCheckThread extends Thread {
         ));
 
         // Ask every robot for permission (including itself)
-        StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true);
+        StartCleaningRobot.broadcastMessage_All(Constants.NEED_MECHANIC, true, Mechanic.getInstance().getMyRequest().getTimestamp());
 
         // If it's not my turn, wait
         while (getReceivedOKsNumber() < StartCleaningRobot.deployedRobots.getNumber()) {
@@ -101,7 +101,8 @@ public class HealthCheckThread extends Thread {
         StartCleaningRobot.broadcastMessage(
                 Constants.MECHANIC_OK,
                 false,
-                Mechanic.getInstance().getQueuedRobotsList()
+                Mechanic.getInstance().getQueuedRobotsList(),
+                -1
         );
 
         // Clear the queue

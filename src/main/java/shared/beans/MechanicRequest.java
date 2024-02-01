@@ -2,9 +2,9 @@ package shared.beans;
 
 public class MechanicRequest {
     private int robotId;
-    private long timestamp;
+    private int timestamp;
 
-    public MechanicRequest(int robotId, long timestamp) {
+    public MechanicRequest(int robotId, int timestamp) {
         this.robotId = robotId;
         this.timestamp = timestamp;
     }
@@ -17,11 +17,11 @@ public class MechanicRequest {
         this.robotId = robotId;
     }
 
-    public long getTimestamp() {
+    public int getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(int timestamp) {
         this.timestamp = timestamp;
     }
 

@@ -99,7 +99,7 @@ public class StartCleaningRobot {
             rcsThread.start();
 
             // Presents itself to other robots
-            broadcastMessage_All(Constants.HELLO, false);
+            broadcastMessage_All(Constants.HELLO, false, -1);
 
             // Create objects
             Buffer buffer = new BufferImpl();
@@ -154,7 +154,7 @@ public class StartCleaningRobot {
         WebResource webResource = client.resource(serverAddress + "/robot/crash/" + robotId);
         try {
             webResource.type("application/json").delete(String.class);
-            broadcastMessage_All("crash_" + robotId, false);
+            broadcastMessage_All("crash_" + robotId, false, -1);
         } catch (ClientHandlerException e) {
             System.err.println("[ERROR] Unreachable server.");
         }
@@ -194,6 +194,7 @@ public class StartCleaningRobot {
                     .build();
 
             RobotCommunicationServiceStub stub = RobotCommunicationServiceGrpc.newStub(channel);
+            int finalMsgTimestamp = msgTimestamp;
             robotStream = stub.rcs(new StreamObserver<RobotMessage>() {
                 public void onNext(RobotMessage robotMessage) {
                     rcsThread.service.handleRobotMessage(robotMessage, this, true);
@@ -253,7 +254,8 @@ public class StartCleaningRobot {
                                         + toBeMoved.getId() + "_"
                                         + newPos[0] + "_"
                                         + newPos[1],
-                                true);
+                                true,
+                                finalMsgTimestamp);
                     }
 
                     // Close the channel with the crashed server
@@ -294,21 +296,22 @@ public class StartCleaningRobot {
 
     }
 
-    public static void broadcastMessage_All(String message, boolean selfBroadcast) {
-        broadcastMessage(message, selfBroadcast, deployedRobots.getDeployedRobots());
+    public static void broadcastMessage_All(String message, boolean selfBroadcast, int newTimestamp) {
+        broadcastMessage(message, selfBroadcast, deployedRobots.getDeployedRobots(), newTimestamp);
     }
 
-    public static void broadcastMessage(String message, boolean selfBroadcast, List<CleaningRobot> receivers) {
+    public static void broadcastMessage(String message, boolean selfBroadcast, List<CleaningRobot> receivers, int newTimestamp) {
         // Sends a message to all of the other robots (parallel)
         // If selfBroadcast is true, send the msg even to itself
         List<Thread> threads = new ArrayList<>();
 
-        int newTimestamp = timestamp.increaseTimestamp();
+        if (newTimestamp == -1) newTimestamp = timestamp.increaseTimestamp();
 
         for (CleaningRobot otherRobot : receivers) {
             if (otherRobot != null) {
                 if (otherRobot.getId() != id || selfBroadcast) {
-                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message, newTimestamp));
+                    int finalNewTimestamp = newTimestamp;
+                    Thread thread = new Thread(() -> sendMessageToOtherRobot(otherRobot, message, finalNewTimestamp));
                     thread.start();
                     threads.add(thread);
                 } else {
