@@ -62,7 +62,7 @@ public class Mechanic {
 
     public boolean isFirst(long timestamp) {
         System.out.println("Timestamp arrivato: " + timestamp + ", timestamp mio: " + myRequest.getTimestamp());
-        return timestamp <= myRequest.getTimestamp(); // DA TESTARE il <=
+        return timestamp < myRequest.getTimestamp();
 //        synchronized (requestQueue) {
 //            requestQueue.sort(Comparator.comparing(MechanicRequest::getTimestamp));
 //            System.out.println("isFirst ordered requestQueue: " + requestQueue);
