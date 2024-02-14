@@ -26,7 +26,7 @@ public class ClientService {
         return Response.ok(rls).build();
     }
 
-    // Lists the last n air pollution levels sent by a given robot
+    // Average of the last n air pollution levels sent by a given robot
     @Path("/avg_robot/{robotId}/{n}")
     @GET
     @Produces({"application/json", "application/xml"})
@@ -46,7 +46,7 @@ public class ClientService {
         return Response.ok(Double.toString(avg)).build();
     }
 
-    // Lists the air pollution levels sent between timestamps t1 and t2
+    // Average of the air pollution levels sent between timestamps t1 and t2
     @Path("/avg_time/{t1}/{t2}")
     @GET
     @Produces({"application/json", "application/xml"})

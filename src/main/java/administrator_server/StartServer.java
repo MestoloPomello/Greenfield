@@ -59,9 +59,6 @@ public class StartServer {
                 public void messageArrived(String topic, MqttMessage message) {
                     Gson gson = new Gson();
 
-//                    Type measurementType = new TypeToken<ArrayList<ServerMeasurement>>(){}.getType();
-//                    ArrayList<ServerMeasurement> newMeasurements = gson.fromJson(new String(message.getPayload()), measurementType);
-
                     AveragesPayload averagesData = gson.fromJson(new String(message.getPayload()), AveragesPayload.class);
                     List<Integer> insertsResponses = new ArrayList<>();
                     StringBuilder strAverages = new StringBuilder();
@@ -109,11 +106,5 @@ public class StartServer {
         } catch (Exception e) {
             System.err.println("[ERROR] Error in the MQTT subscription: " + e.getMessage());
         }
-
-//        System.out.println("Hit return to stop...");
-//        System.in.read();
-//        System.out.println("Stopping server");
-//        server.stop(0);
-//        System.out.println("Server stopped");
     }
 }

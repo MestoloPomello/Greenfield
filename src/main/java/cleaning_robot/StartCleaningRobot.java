@@ -1,7 +1,6 @@
 package cleaning_robot;
 
 import cleaning_robot.beans.DeployedRobots;
-import cleaning_robot.beans.Mechanic;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc;
 import cleaning_robot.proto.RobotCommunicationServiceGrpc.RobotCommunicationServiceStub;
 import cleaning_robot.proto.RobotMessageOuterClass.RobotMessage;
@@ -15,7 +14,10 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import shared.beans.*;
+import shared.beans.BufferImpl;
+import shared.beans.CleaningRobot;
+import shared.beans.InputRobot;
+import shared.beans.RobotCreationResponse;
 import shared.constants.Constants;
 import shared.exceptions.DuplicatedIdException;
 import shared.utils.LamportTimestamp;
@@ -208,7 +210,6 @@ public class StartCleaningRobot {
                     }
 
                     // If this robot was awaiting for an OK from the crashed one, act as if it sent it
-                    //Mechanic.getInstance().notifyForMechanicRelease(otherRobot.getId());
                     healthCheckThread.increaseReceivedOKs(otherRobot.getId());
 
                     // The robot that should start the district change is the one before the one that crashed

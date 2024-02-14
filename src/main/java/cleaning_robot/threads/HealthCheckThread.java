@@ -51,7 +51,6 @@ public class HealthCheckThread extends Thread {
 
     public void ricartAgrawala() {
 
-        //Mechanic.getInstance().resetReceivedOKs();
         synchronized (receivedOKs) {
             receivedOKs.clear();
         }
@@ -167,7 +166,4 @@ public class HealthCheckThread extends Thread {
         return isRepairing;
     }
 
-    public void setRepairing(boolean repairing) {
-        isRepairing = repairing;
-    }
 }

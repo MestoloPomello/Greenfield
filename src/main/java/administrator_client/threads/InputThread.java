@@ -1,20 +1,13 @@
 package administrator_client.threads;
 
-import java.util.ArrayList;
 import java.util.Scanner;
-import administrator_server.beans.CleaningRobots;
+
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientHandlerException;
-import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
-import com.sun.jersey.api.client.GenericType;
 import shared.beans.CleaningRobot;
-import shared.beans.MeasurementsListResponse;
 import shared.beans.RobotListResponse;
-import shared.beans.ServerMeasurement;
-import simulators.Measurement;
 
-import javax.ws.rs.core.MediaType;
 import java.util.List;
 
 public class InputThread extends Thread {

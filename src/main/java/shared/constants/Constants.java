@@ -36,5 +36,4 @@ public final class Constants {
     // Mechanic messages
     public static final String NEED_MECHANIC = "needMechanic";
     public static final String MECHANIC_OK = "ok";
-//    public static final String MECHANIC_RELEASE = "release";
 }
