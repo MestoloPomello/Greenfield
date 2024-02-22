@@ -18,7 +18,7 @@ Detailed info can be found inside the guidelines PDF in the repository.
 
 ### Cleaning Robot
  - Timestamp management (Lamport clock)
- - Communications with other robots via **gRPC**
+ - Communications with other robots via **gRPC** and **Protocol Buffers**
  - Input possibilities (*fix*, *quit*)
  - Reading data from sensors and publishing them to the **MQTT** broker
  - Detection and handling of other robots' crashes
