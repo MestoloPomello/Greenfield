@@ -2,7 +2,7 @@
 # Greenfield
 
 Project for the Distributed and Pervasive Systems exam (UniMi).
-This systems aims to manage a network of cleaning robots deployed around the city of Greenfield. The robots will generate some values (which simulate pollution sensors) and make them available to the administrators of the network.
+This project aims to manage a network of cleaning robots deployed around the city of Greenfield. The robots will generate some values (which simulate pollution sensors) and make them available to the administrators of the network.
 Detailed info can be found inside the guidelines PDF in the repository.
 
 ## Modules
